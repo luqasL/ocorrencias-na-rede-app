@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocorrências PA — Registro</title>
+<style>
+  :root{
+    --bg:#10131a;
+    --surface:#191e27;
+    --surface-2:#212836;
+    --border:#2b3242;
+    --text:#e7eaf0;
+    --text-dim:#8a93a6;
+    --accent:#e3a438;
+    --accent-ink:#1a1406;
+    --danger:#e5484d;
+    --success:#3fb68e;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  a{color:var(--accent);}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px;}
+  header.top{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);
+  }
+  header.top h1{font-size:22px;margin:0;font-weight:600;letter-spacing:-0.01em;}
+  header.top p{margin:4px 0 0;color:var(--text-dim);font-size:13.5px;}
+  .accent-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);
+    margin-right:8px;box-shadow:0 0 0 3px rgba(227,164,56,0.18);
+  }
+  .banner{
+    background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:var(--radius);padding:16px 18px;margin-bottom:24px;font-size:14px;
+  }
+  .banner.error{border-left-color:var(--danger);}
+  .banner h3{margin:0 0 6px;font-size:14px;}
+  .banner code{background:var(--bg);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12.5px;}
+
+  nav.tabs{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:24px;border-bottom:1px solid var(--border);}
+  nav.tabs button{
+    background:none;border:none;color:var(--text-dim);font-family:var(--sans);font-size:14px;
+    padding:10px 2px;cursor:pointer;border-bottom:2px solid transparent;transform:translateY(1px);
+    white-space:nowrap;
+  }
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
+  nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .subtabs{display:flex;gap:8px;margin-bottom:18px;}
+  .subtabs button{
+    background:var(--surface);border:1px solid var(--border);color:var(--text-dim);
+    font-family:var(--sans);font-size:13px;padding:7px 14px;border-radius:999px;cursor:pointer;
+  }
+  .subtabs button.active{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:6px;}
+  .field .hint{font-size:12px;color:var(--text-dim);margin-top:5px;}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  input, select, textarea{
+    width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:10px 12px;font-family:var(--sans);font-size:14.5px;
+  }
+  input[type=datetime-local], input[type=date]{font-family:var(--mono);font-size:13.5px;}
+  textarea{resize:vertical;min-height:70px;}
+  input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);
+  }
+  input[type="checkbox"]{
+    width:17px;height:17px;flex:none;min-width:17px;
+    padding:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;
+    accent-color:var(--accent);cursor:pointer;
+  }
+  .slotpon-toggle{display:flex;gap:8px;margin-bottom:10px;}
+  .slotpon-toggle button{
+    flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);
+    padding:8px;border-radius:8px;font-family:var(--sans);font-size:13px;cursor:pointer;
+  }
+  .slotpon-toggle button.active{color:var(--text);border-color:var(--accent);background:var(--surface-2);}
+
+  button.primary{
+    background:var(--accent);color:var(--accent-ink);border:none;font-family:var(--sans);
+    font-weight:600;font-size:14.5px;padding:12px 20px;border-radius:8px;cursor:pointer;
+  }
+  button.primary:disabled{opacity:0.5;cursor:default;}
+  button.secondary{
+    background:transparent;color:var(--text-dim);border:1px solid var(--border);
+    font-family:var(--sans);font-size:13.5px;padding:8px 14px;border-radius:8px;cursor:pointer;
+  }
+  button.danger{
+    background:transparent;color:var(--danger);border:1px solid var(--danger);
+    font-family:var(--sans);font-size:13px;padding:7px 12px;border-radius:7px;cursor:pointer;
+  }
+  button.small{font-size:12.5px;padding:6px 11px;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
+  .card .id{font-family:var(--mono);font-size:13px;color:var(--accent);}
+  .card .meta{color:var(--text-dim);font-size:13px;margin-top:2px;}
+  .card .meta b{color:var(--text);font-weight:500;}
+  .card .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  .badge{
+    display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);
+  }
+  .close-inline{display:flex;gap:8px;margin-top:12px;align-items:center;}
+  .close-inline input{flex:1;}
+  .empty{color:var(--text-dim);font-size:14px;padding:28px 0;text-align:center;}
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface-2);
+    border:1px solid var(--border);padding:12px 18px;border-radius:8px;font-size:13.5px;
+    display:none;max-width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;
+  }
+  .toast.show{display:block;}
+  .toast.error{border-color:var(--danger);color:#ffb3b5;}
+  .toast.success{border-color:var(--success);color:#a8ecd9;}
+  .section-title{font-size:15px;margin:0 0 12px;font-weight:600;}
+  .list-row{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:10px 14px;margin-bottom:8px;
+  }
+  .list-row .top-line{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+  .list-row .valor{font-family:var(--mono);font-size:13.5px;}
+  .list-row .btns{display:flex;gap:6px;}
+  .rename-inline{display:none;gap:8px;margin-top:10px;}
+  @media (max-width:520px){
+    .row-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><span class="accent-dot"></span>Ocorrências PA</h1>
+      <p>Registro rápido de sinistros, manutenções e instabilidades</p>
+    </div>
+  </header>
+
+  <div id="configBanner" class="banner error" style="display:none;">
+    <h3>Configuração necessária</h3>
+    <p>Abra este arquivo em um editor de texto e preencha <code>WEBAPP_URL</code> e
+    <code>ACCESS_TOKEN</code> no topo do bloco <code>&lt;script&gt;</code> (veja o LEIA-ME.md).</p>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="novo" class="active">Novo registro</button>
+    <button data-tab="massivo">Adicionar eventos massivo</button>
+    <button data-tab="gerenciar">Gerenciar incidentes</button>
+    <button data-tab="listas">OLTs e Eventos</button>
+  </nav>
+
+  <!-- ===================== TAB: NOVO REGISTRO ===================== -->
+  <section class="panel active" id="panel-novo">
+    <form id="formNovo">
+      <div class="field">
+        <label for="fEvento">Evento</label>
+        <select id="fEvento" required></select>
+        <input id="fEventoNovo" style="display:none;margin-top:8px;" placeholder="Digite o novo tipo de evento">
+      </div>
+
+      <div class="field">
+        <label for="fOlt">OLT</label>
+        <select id="fOlt" required></select>
+        <input id="fOltNovo" style="display:none;margin-top:8px;" placeholder="Digite o nome da nova OLT">
+      </div>
+
+      <div class="field">
+        <label>Slot / PON</label>
+        <div class="slotpon-toggle">
+          <button type="button" data-target="f" data-mode="sel" class="active btnModoSel">Selecionar</button>
+          <button type="button" data-target="f" data-mode="livre" class="btnModoLivre">Texto livre / não se aplica</button>
+        </div>
+        <div id="fSlotponSel" class="row-2">
+          <select id="fSlot"></select>
+          <select id="fPon"></select>
+        </div>
+        <input id="fSlotponLivre" style="display:none;" placeholder='Ex: "SLOT 3 PON 7", "--", ou deixe em branco'>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="fInicio">Início do sinistro</label>
+          <input type="datetime-local" id="fInicio" required>
+        </div>
+        <div class="field">
+          <label for="fTermino">Término do sinistro</label>
+          <input type="datetime-local" id="fTermino">
+          <div class="hint">Deixe em branco se o incidente ainda está em aberto</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="fObs">Observação</label>
+        <textarea id="fObs" placeholder="Opcional"></textarea>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="fHorarioInfo">Horário da informação</label>
+          <input type="datetime-local" id="fHorarioInfo">
+          <div class="hint">Horário em que a informação chegou no grupo</div>
+        </div>
+        <div class="field">
+          <label for="fFonte">Fonte</label>
+          <select id="fFonte"></select>
+          <input id="fFonteNovo" style="display:none;margin-top:8px;" placeholder="Nome de quem repassou/confirmou">
+        </div>
+      </div>
+
+      <button type="submit" class="primary" id="btnSubmit">Registrar ocorrência</button>
+    </form>
+  </section>
+
+  <!-- ===================== TAB: ADICIONAR EVENTOS MASSIVO ===================== -->
+  <section class="panel" id="panel-massivo">
+    <div class="card">
+      <div class="field">
+        <label for="mEvento">Evento</label>
+        <select id="mEvento" required></select>
+        <input id="mEventoNovo" style="display:none;margin-top:8px;" placeholder="Digite o novo tipo de evento">
+      </div>
+
+      <div class="field">
+        <label for="mOlt">OLT</label>
+        <select id="mOlt" required></select>
+        <input id="mOltNovo" style="display:none;margin-top:8px;" placeholder="Digite o nome da nova OLT">
+      </div>
+
+      <div class="field">
+        <label>Portas afetadas (opcional — cada uma vira uma linha na planilha)</label>
+        <div id="mPortasList" style="margin-bottom:10px;"></div>
+        <div class="row-2">
+          <select id="mPortaSlot"></select>
+          <select id="mPortaPon"></select>
+        </div>
+        <button type="button" class="secondary small" id="btnAddPortaSel" style="margin-top:8px;">+ Adicionar porta selecionada</button>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input id="mPortaLivre" placeholder='Texto livre: "SLOT 3 PON 7", "--"...'>
+          <button type="button" class="secondary small" id="btnAddPortaLivre">+ Adicionar</button>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="mInicio">Início do sinistro</label>
+          <input type="datetime-local" id="mInicio" required>
+        </div>
+        <div class="field">
+          <label for="mTermino">Término do sinistro</label>
+          <input type="datetime-local" id="mTermino">
+          <div class="hint">Deixe em branco se ainda está em aberto</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="mObs">Observação</label>
+        <textarea id="mObs" placeholder="Opcional"></textarea>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="mHorarioInfo">Horário da informação</label>
+          <input type="datetime-local" id="mHorarioInfo">
+        </div>
+        <div class="field">
+          <label for="mFonte">Fonte</label>
+          <select id="mFonte"></select>
+          <input id="mFonteNovo" style="display:none;margin-top:8px;" placeholder="Nome de quem repassou/confirmou">
+        </div>
+      </div>
+
+      <button type="button" class="primary" id="btnAddItemFila">Adicionar item à fila</button>
+    </div>
+
+    <div class="section-title">Fila (<span id="filaCount">0</span>)</div>
+    <div id="filaLista"></div>
+    <button type="button" class="primary" id="btnEnviarFila" disabled style="margin-top:8px;">Enviar tudo</button>
+  </section>
+
+  <!-- ===================== TAB: GERENCIAR ===================== -->
+  <section class="panel" id="panel-gerenciar">
+    <div class="subtabs">
+      <button data-sub="abertos" class="active">Abertos</button>
+      <button data-sub="buscar">Buscar fechados</button>
+    </div>
+
+    <div id="sub-abertos">
+      <div class="row-2" style="margin-bottom:10px;">
+        <div class="field">
+          <label for="abertosOlt">OLT</label>
+          <select id="abertosOlt"></select>
+        </div>
+        <div class="field"></div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="abertosStart">De</label>
+          <input type="date" id="abertosStart">
+        </div>
+        <div class="field">
+          <label for="abertosEnd">Até</label>
+          <input type="date" id="abertosEnd">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <button type="button" class="primary" id="btnBuscarAbertos">Buscar</button>
+        <button type="button" class="secondary" id="btnRefreshAbertos">Atualizar lista</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <input type="checkbox" id="selAllAbertos">
+        <label for="selAllAbertos" style="margin:0;font-size:13px;color:var(--text-dim);">Selecionar todos</label>
+      </div>
+      <div id="bulkBarAbertos" class="card" style="display:none;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="secondary small" id="btnFecharSelecionados">Fechar selecionados (<span id="countAbertos1">0</span>)</button>
+          <button type="button" class="danger" id="btnExcluirSelecionadosAbertos">Excluir selecionados (<span id="countAbertos2">0</span>)</button>
+        </div>
+        <div class="close-inline" id="fecharSelecionadosInline" style="display:none;">
+          <input type="datetime-local" id="terminoMassaInput">
+          <button type="button" class="primary small" id="btnConfirmarFecharMassa">Confirmar</button>
+        </div>
+      </div>
+      <div id="listaAbertos"></div>
+    </div>
+
+    <div id="sub-buscar" style="display:none;">
+      <div class="row-2" style="margin-bottom:10px;">
+        <div class="field">
+          <label for="searchOlt">OLT</label>
+          <select id="searchOlt"></select>
+        </div>
+        <div class="field"></div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label for="searchStart">De</label>
+          <input type="date" id="searchStart">
+        </div>
+        <div class="field">
+          <label for="searchEnd">Até</label>
+          <input type="date" id="searchEnd">
+        </div>
+      </div>
+      <button type="button" class="primary" id="btnBuscar">Buscar</button>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0 10px;">
+        <input type="checkbox" id="selAllFechados">
+        <label for="selAllFechados" style="margin:0;font-size:13px;color:var(--text-dim);">Selecionar todos</label>
+      </div>
+      <div id="bulkBarFechados" class="card" style="display:none;">
+        <button type="button" class="danger" id="btnExcluirSelecionadosFechados">Excluir selecionados (<span id="countFechados">0</span>)</button>
+      </div>
+      <div id="listaBuscar"></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB: OLTS E EVENTOS ===================== -->
+  <section class="panel" id="panel-listas">
+    <div class="row-2" style="align-items:start;">
+      <div>
+        <div class="section-title">OLTs</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <input id="novaOltInput" placeholder="Nome da nova OLT">
+          <button type="button" class="secondary small" id="btnAddOlt">Adicionar</button>
+        </div>
+        <div id="listaOlts"></div>
+      </div>
+      <div>
+        <div class="section-title">Eventos</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <input id="novoEventoInput" placeholder="Nome do novo tipo de evento">
+          <button type="button" class="secondary small" id="btnAddEvento">Adicionar</button>
+        </div>
+        <div id="listaEventos"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÃO — preencha estes dois valores após publicar o
+// Apps Script como Web App (veja LEIA-ME.md).
+// ============================================================
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzw5sW_PDPBdjerDAgkfXtaKpUobNbwc1nyxoDhDAU2ngvUD5dZlZ9Zs8qOsx1LCfsT/exec";
+const ACCESS_TOKEN = "136177@amz";
+// ============================================================
+
+const isConfigured = !WEBAPP_URL.startsWith("COLE_") && !ACCESS_TOKEN.startsWith("COLE_");
+const FILA_KEY = "ocorrencias_pa_fila_pendente";
+
+let meta = { olts: [], eventos: [], fontes: [] };
+let filaItems = [];
+let portasAtuais = [];
+
+// ---------- helpers de API ----------
+async function apiGet(action, params) {
+  const qs = new URLSearchParams(Object.assign({ token: ACCESS_TOKEN, action }, params || {}));
+  const res = await fetch(WEBAPP_URL + "?" + qs.toString());
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "Erro desconhecido");
+  return json.data;
+}
+
+async function apiPost(action, payload) {
+  const body = Object.assign({ token: ACCESS_TOKEN, action }, payload || {});
+  const res = await fetch(WEBAPP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body)
+  });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "Erro desconhecido");
+  return json.data;
+}
+
+// ---------- toast ----------
+let toastTimer;
+function showToast(msg, kind) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (kind ? " " + kind : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 4500);
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const [d, t] = iso.split("T");
+  const [y, m, day] = d.split("-");
+  return day + "/" + m + "/" + y + (t ? " " + t : "");
+}
+
+// ---------- tabs principais ----------
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "gerenciar") loadAbertos({});
+    if (btn.dataset.tab === "listas") {
+      renderManagedList(document.getElementById("listaOlts"), meta.olts, "olt");
+      renderManagedList(document.getElementById("listaEventos"), meta.eventos, "evento");
+    }
+  });
+});
+
+// ---------- subtabs de Gerenciar incidentes ----------
+document.querySelectorAll(".subtabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".subtabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("sub-abertos").style.display = btn.dataset.sub === "abertos" ? "" : "none";
+    document.getElementById("sub-buscar").style.display = btn.dataset.sub === "buscar" ? "" : "none";
+  });
+});
+
+// ---------- slot/pon toggle (Novo Registro) ----------
+document.querySelector(".btnModoSel").addEventListener("click", () => setSlotPonMode("sel"));
+document.querySelector(".btnModoLivre").addEventListener("click", () => setSlotPonMode("livre"));
+function setSlotPonMode(mode) {
+  document.querySelector(".btnModoSel").classList.toggle("active", mode === "sel");
+  document.querySelector(".btnModoLivre").classList.toggle("active", mode === "livre");
+  document.getElementById("fSlotponSel").style.display = mode === "sel" ? "" : "none";
+  document.getElementById("fSlotponLivre").style.display = mode === "livre" ? "" : "none";
+}
+
+// ---------- dropdown "+ adicionar novo" ----------
+function fillSelectWithAddOption(selectEl, values, addLabel, inputEl) {
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = "Selecione...";
+  selectEl.appendChild(blank);
+  values.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    selectEl.appendChild(o);
+  });
+  const addOpt = document.createElement("option");
+  addOpt.value = "__novo__"; addOpt.textContent = addLabel;
+  selectEl.appendChild(addOpt);
+
+  selectEl.onchange = () => {
+    if (selectEl.value === "__novo__") {
+      inputEl.style.display = "";
+      inputEl.focus();
+    } else {
+      inputEl.style.display = "none";
+      inputEl.value = "";
+    }
+  };
+}
+
+function getSelectValue(selectEl, inputEl) {
+  if (selectEl.value === "__novo__") return inputEl.value.trim();
+  return selectEl.value;
+}
+
+function fillNumberSelect(selectEl, min, max, label) {
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = label;
+  selectEl.appendChild(blank);
+  for (let i = min; i <= max; i++) {
+    const o = document.createElement("option"); o.value = i; o.textContent = label + " " + i;
+    selectEl.appendChild(o);
+  }
+}
+
+function fillPlainOltSelect(selectEl, values) {
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = "Todas";
+  selectEl.appendChild(blank);
+  values.forEach(v => {
+    const o = document.createElement("option"); o.value = v; o.textContent = v;
+    selectEl.appendChild(o);
+  });
+}
+
+// ---------- carregar metadados ----------
+async function loadMeta() {
+  try {
+    meta = await apiGet("meta");
+
+    fillSelectWithAddOption(document.getElementById("fEvento"), meta.eventos, "+ Novo tipo de evento", document.getElementById("fEventoNovo"));
+    fillSelectWithAddOption(document.getElementById("fOlt"), meta.olts, "+ Adicionar OLT", document.getElementById("fOltNovo"));
+    fillSelectWithAddOption(document.getElementById("fFonte"), meta.fontes, "+ Nova fonte", document.getElementById("fFonteNovo"));
+
+    fillSelectWithAddOption(document.getElementById("mEvento"), meta.eventos, "+ Novo tipo de evento", document.getElementById("mEventoNovo"));
+    fillSelectWithAddOption(document.getElementById("mOlt"), meta.olts, "+ Adicionar OLT", document.getElementById("mOltNovo"));
+    fillSelectWithAddOption(document.getElementById("mFonte"), meta.fontes, "+ Nova fonte", document.getElementById("mFonteNovo"));
+
+    fillNumberSelect(document.getElementById("fSlot"), 1, 30, "Slot");
+    fillNumberSelect(document.getElementById("fPon"), 1, 30, "PON");
+    fillNumberSelect(document.getElementById("mPortaSlot"), 1, 30, "Slot");
+    fillNumberSelect(document.getElementById("mPortaPon"), 1, 30, "PON");
+
+    fillPlainOltSelect(document.getElementById("searchOlt"), meta.olts);
+    fillPlainOltSelect(document.getElementById("abertosOlt"), meta.olts);
+  } catch (err) {
+    showToast("Erro ao carregar listas: " + err.message, "error");
+  }
+}
+
+// ============================================================
+// NOVO REGISTRO
+// ============================================================
+document.getElementById("formNovo").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById("btnSubmit");
+
+  const evento = getSelectValue(document.getElementById("fEvento"), document.getElementById("fEventoNovo"));
+  const olt = getSelectValue(document.getElementById("fOlt"), document.getElementById("fOltNovo"));
+  const fonte = getSelectValue(document.getElementById("fFonte"), document.getElementById("fFonteNovo"));
+
+  let slotPon = "";
+  if (document.querySelector(".btnModoSel").classList.contains("active")) {
+    const s = document.getElementById("fSlot").value;
+    const p = document.getElementById("fPon").value;
+    if (s && p) slotPon = "SLOT " + s + " PON " + p;
+  } else {
+    slotPon = document.getElementById("fSlotponLivre").value.trim();
+  }
+
+  const payload = {
+    evento, olt, slotPon,
+    inicio: document.getElementById("fInicio").value,
+    termino: document.getElementById("fTermino").value,
+    obs: document.getElementById("fObs").value.trim(),
+    horarioInfo: document.getElementById("fHorarioInfo").value,
+    fonte
+  };
+
+  if (!payload.inicio || !payload.evento || !payload.olt) {
+    showToast("Preencha ao menos Evento, OLT e Início do sinistro.", "error");
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = "Registrando...";
+  try {
+    const result = await apiPost("create", payload);
+    showToast("Registrado como " + result.id + " (linha " + result.row + ")", "success");
+    document.getElementById("formNovo").reset();
+    setSlotPonMode("sel");
+    [document.getElementById("fEventoNovo"), document.getElementById("fOltNovo"), document.getElementById("fFonteNovo")]
+      .forEach(i => i.style.display = "none");
+    await loadMeta();
+  } catch (err) {
+    showToast("Erro ao registrar: " + err.message, "error");
+  } finally {
+    btn.disabled = false; btn.textContent = "Registrar ocorrência";
+  }
+});
+
+// ============================================================
+// ADICIONAR EVENTOS MASSIVO
+// ============================================================
+function renderPortasAtuais() {
+  const el = document.getElementById("mPortasList");
+  if (!portasAtuais.length) {
+    el.innerHTML = '<div class="hint">Nenhuma porta adicionada ainda (opcional)</div>';
+    return;
+  }
+  el.innerHTML = "";
+  portasAtuais.forEach((p, i) => {
+    const chip = document.createElement("span");
+    chip.className = "badge";
+    chip.style.marginRight = "6px";
+    chip.style.marginBottom = "6px";
+    chip.style.display = "inline-block";
+    chip.textContent = p + " ";
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.textContent = "×";
+    rm.style.cssText = "background:none;border:none;color:var(--danger);cursor:pointer;margin-left:4px;font-size:13px;";
+    rm.addEventListener("click", () => { portasAtuais.splice(i, 1); renderPortasAtuais(); });
+    chip.appendChild(rm);
+    el.appendChild(chip);
+  });
+}
+
+document.getElementById("btnAddPortaSel").addEventListener("click", () => {
+  const s = document.getElementById("mPortaSlot").value;
+  const p = document.getElementById("mPortaPon").value;
+  if (!s || !p) { showToast("Selecione Slot e PON.", "error"); return; }
+  portasAtuais.push("SLOT " + s + " PON " + p);
+  document.getElementById("mPortaSlot").value = "";
+  document.getElementById("mPortaPon").value = "";
+  renderPortasAtuais();
+});
+document.getElementById("btnAddPortaLivre").addEventListener("click", () => {
+  const inp = document.getElementById("mPortaLivre");
+  const v = inp.value.trim();
+  if (!v) return;
+  portasAtuais.push(v);
+  inp.value = "";
+  renderPortasAtuais();
+});
+
+document.getElementById("btnAddItemFila").addEventListener("click", () => {
+  const evento = getSelectValue(document.getElementById("mEvento"), document.getElementById("mEventoNovo"));
+  const olt = getSelectValue(document.getElementById("mOlt"), document.getElementById("mOltNovo"));
+  const fonte = getSelectValue(document.getElementById("mFonte"), document.getElementById("mFonteNovo"));
+  const inicio = document.getElementById("mInicio").value;
+  const termino = document.getElementById("mTermino").value;
+  const obs = document.getElementById("mObs").value.trim();
+  const horarioInfo = document.getElementById("mHorarioInfo").value;
+
+  if (!evento || !olt || !inicio) {
+    showToast("Preencha ao menos Evento, OLT e Início do sinistro.", "error");
+    return;
+  }
+
+  filaItems.push({ evento, olt, inicio, termino, obs, horarioInfo, fonte, slotPons: [...portasAtuais] });
+  saveFila();
+  renderFila();
+
+  document.getElementById("mEvento").value = "";
+  document.getElementById("mOlt").value = "";
+  document.getElementById("mEventoNovo").style.display = "none";
+  document.getElementById("mOltNovo").style.display = "none";
+  document.getElementById("mFonteNovo").style.display = "none";
+  document.getElementById("mInicio").value = "";
+  document.getElementById("mTermino").value = "";
+  document.getElementById("mObs").value = "";
+  document.getElementById("mHorarioInfo").value = "";
+  document.getElementById("mFonte").value = "";
+  portasAtuais = [];
+  renderPortasAtuais();
+  showToast("Item adicionado à fila.", "success");
+});
+
+function saveFila() {
+  try { localStorage.setItem(FILA_KEY, JSON.stringify(filaItems)); } catch (e) { /* ignora se indisponível */ }
+}
+function loadFila() {
+  try {
+    const raw = localStorage.getItem(FILA_KEY);
+    filaItems = raw ? JSON.parse(raw) : [];
+  } catch (e) { filaItems = []; }
+}
+
+function renderFila() {
+  document.getElementById("filaCount").textContent = filaItems.length;
+  document.getElementById("btnEnviarFila").disabled = filaItems.length === 0;
+  const container = document.getElementById("filaLista");
+  container.innerHTML = "";
+  if (!filaItems.length) {
+    container.innerHTML = '<div class="empty">Nenhum item na fila ainda.</div>';
+    return;
+  }
+  filaItems.forEach((item, idx) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const portasTxt = item.slotPons.length ? item.slotPons.join(", ") : "(sem porta específica)";
+    card.innerHTML = `
+      <div class="meta"><b>${item.evento}</b> · ${item.olt}</div>
+      <div class="meta">Portas: ${portasTxt}</div>
+      <div class="meta">Início: ${fmtDate(item.inicio)}${item.termino ? " · Término: " + fmtDate(item.termino) : ""}</div>
+      <div class="actions">
+        <button type="button" class="danger small">Remover</button>
+      </div>
+    `;
+    card.querySelector("button.danger").addEventListener("click", () => {
+      filaItems.splice(idx, 1);
+      saveFila();
+      renderFila();
+    });
+    container.appendChild(card);
+  });
+}
+
+document.getElementById("btnEnviarFila").addEventListener("click", async () => {
+  if (!filaItems.length) return;
+  const btn = document.getElementById("btnEnviarFila");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const result = await apiPost("createBatch", { items: filaItems });
+    showToast(result.count + " linha(s) registrada(s) com sucesso.", "success");
+    filaItems = [];
+    saveFila();
+    renderFila();
+    await loadMeta();
+  } catch (err) {
+    showToast("Erro ao enviar fila: " + err.message, "error");
+  } finally {
+    btn.disabled = filaItems.length === 0; btn.textContent = "Enviar tudo";
+  }
+});
+
+// ============================================================
+// GERENCIAR INCIDENTES — Abertos
+// ============================================================
+let selectedAbertos = new Set();
+let selectedFechados = new Set();
+
+function updateBulkBarAbertos() {
+  const n = selectedAbertos.size;
+  document.getElementById("bulkBarAbertos").style.display = n > 0 ? "block" : "none";
+  document.getElementById("countAbertos1").textContent = n;
+  document.getElementById("countAbertos2").textContent = n;
+  if (n === 0) document.getElementById("fecharSelecionadosInline").style.display = "none";
+}
+function updateBulkBarFechados() {
+  const n = selectedFechados.size;
+  document.getElementById("bulkBarFechados").style.display = n > 0 ? "block" : "none";
+  document.getElementById("countFechados").textContent = n;
+}
+
+async function loadAbertos(filters) {
+  selectedAbertos.clear();
+  document.getElementById("selAllAbertos").checked = false;
+  updateBulkBarAbertos();
+  const container = document.getElementById("listaAbertos");
+  container.innerHTML = '<div class="empty">Carregando...</div>';
+  try {
+    const items = await apiGet("listOpen", filters || {});
+    if (!items.length) {
+      container.innerHTML = '<div class="empty">Nenhum incidente em aberto com esses filtros.</div>';
+      return;
+    }
+    container.innerHTML = "";
+    items.forEach(item => container.appendChild(renderOpenCard(item)));
+  } catch (err) {
+    container.innerHTML = "";
+    showToast("Erro ao carregar abertos: " + err.message, "error");
+  }
+}
+
+function renderOpenCard(item) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      <input type="checkbox" class="sel-check" data-row="${item.row}" style="margin-top:4px;">
+      <div style="flex:1;">
+        <div class="id">${item.id}</div>
+        <div class="meta"><b>${item.evento}</b> · ${item.olt}${item.slotPon ? " · " + item.slotPon : ""}</div>
+        <div class="meta">Início: ${fmtDate(item.inicio)}</div>
+        <div class="actions">
+          <button type="button" class="secondary small btn-fechar">Fechar</button>
+          <button type="button" class="danger btn-excluir">Excluir</button>
+        </div>
+        <div class="close-inline" style="display:none;">
+          <input type="datetime-local">
+          <button type="button" class="primary small btn-confirmar-fechar">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  card.querySelector(".sel-check").addEventListener("change", (e) => {
+    if (e.target.checked) selectedAbertos.add(item.row);
+    else selectedAbertos.delete(item.row);
+    updateBulkBarAbertos();
+  });
+  const closeInline = card.querySelector(".close-inline");
+  card.querySelector(".btn-fechar").addEventListener("click", () => {
+    closeInline.style.display = closeInline.style.display === "none" ? "flex" : "none";
+  });
+  card.querySelector(".btn-confirmar-fechar").addEventListener("click", async () => {
+    const val = closeInline.querySelector("input").value;
+    if (!val) { showToast("Informe a data/hora de término.", "error"); return; }
+    try {
+      await apiPost("close", { row: item.row, termino: val });
+      showToast(item.id + " fechado.", "success");
+      loadAbertos(currentAbertosFilter());
+    } catch (err) {
+      showToast("Erro ao fechar: " + err.message, "error");
+    }
+  });
+  card.querySelector(".btn-excluir").addEventListener("click", async () => {
+    const ok = confirm("Excluir " + item.id + " — " + item.olt + (item.slotPon ? ", " + item.slotPon : "") + "?\nEssa ação não pode ser desfeita.");
+    if (!ok) return;
+    try {
+      await apiPost("delete", { row: item.row });
+      showToast(item.id + " excluído.", "success");
+      loadAbertos(currentAbertosFilter());
+    } catch (err) {
+      showToast("Erro ao excluir: " + err.message, "error");
+    }
+  });
+  return card;
+}
+
+function currentAbertosFilter() {
+  return {
+    olt: document.getElementById("abertosOlt").value,
+    start: document.getElementById("abertosStart").value,
+    end: document.getElementById("abertosEnd").value
+  };
+}
+document.getElementById("btnRefreshAbertos").addEventListener("click", () => {
+  document.getElementById("abertosOlt").value = "";
+  document.getElementById("abertosStart").value = "";
+  document.getElementById("abertosEnd").value = "";
+  loadAbertos({});
+});
+document.getElementById("btnBuscarAbertos").addEventListener("click", () => loadAbertos(currentAbertosFilter()));
+
+document.getElementById("selAllAbertos").addEventListener("change", (e) => {
+  document.querySelectorAll("#listaAbertos .sel-check").forEach(cb => {
+    cb.checked = e.target.checked;
+    const row = parseInt(cb.dataset.row, 10);
+    if (e.target.checked) selectedAbertos.add(row);
+    else selectedAbertos.delete(row);
+  });
+  updateBulkBarAbertos();
+});
+
+document.getElementById("btnFecharSelecionados").addEventListener("click", () => {
+  const el = document.getElementById("fecharSelecionadosInline");
+  el.style.display = el.style.display === "none" ? "flex" : "none";
+});
+document.getElementById("btnConfirmarFecharMassa").addEventListener("click", async () => {
+  const val = document.getElementById("terminoMassaInput").value;
+  if (!val) { showToast("Informe a data/hora de término.", "error"); return; }
+  try {
+    const result = await apiPost("closeBatch", { rows: [...selectedAbertos], termino: val });
+    showToast(result.count + " incidente(s) fechado(s).", "success");
+    loadAbertos(currentAbertosFilter());
+  } catch (err) {
+    showToast("Erro ao fechar em massa: " + err.message, "error");
+  }
+});
+document.getElementById("btnExcluirSelecionadosAbertos").addEventListener("click", async () => {
+  const n = selectedAbertos.size;
+  const ok = confirm("Excluir " + n + " incidente(s) selecionado(s)? Essa ação não pode ser desfeita.");
+  if (!ok) return;
+  try {
+    const result = await apiPost("deleteBatch", { rows: [...selectedAbertos] });
+    showToast(result.count + " excluído(s).", "success");
+    loadAbertos(currentAbertosFilter());
+  } catch (err) {
+    showToast("Erro ao excluir em massa: " + err.message, "error");
+  }
+});
+
+// ============================================================
+// GERENCIAR INCIDENTES — Buscar fechados
+// ============================================================
+document.getElementById("btnBuscar").addEventListener("click", async () => {
+  selectedFechados.clear();
+  document.getElementById("selAllFechados").checked = false;
+  updateBulkBarFechados();
+  const container = document.getElementById("listaBuscar");
+  container.innerHTML = '<div class="empty">Buscando...</div>';
+  const olt = document.getElementById("searchOlt").value;
+  const start = document.getElementById("searchStart").value;
+  const end = document.getElementById("searchEnd").value;
+  try {
+    const result = await apiGet("searchClosed", { olt, start, end });
+    const items = result.items;
+    if (!items.length) {
+      container.innerHTML = '<div class="empty">Nenhum incidente encontrado com esses filtros.</div>';
+      return;
+    }
+    container.innerHTML = "";
+    if (result.capped) {
+      const note = document.createElement("div");
+      note.className = "hint";
+      note.style.marginBottom = "10px";
+      note.textContent = "Mostrando os " + items.length + " mais recentes de " + result.total + " encontrados — refine os filtros (OLT / De / Até) pra ver os demais.";
+      container.appendChild(note);
+    }
+    items.forEach(item => container.appendChild(renderClosedCard(item)));
+  } catch (err) {
+    container.innerHTML = "";
+    showToast("Erro na busca: " + err.message, "error");
+  }
+});
+
+document.getElementById("selAllFechados").addEventListener("change", (e) => {
+  document.querySelectorAll("#listaBuscar .sel-check-fechado").forEach(cb => {
+    cb.checked = e.target.checked;
+    const row = parseInt(cb.dataset.row, 10);
+    if (e.target.checked) selectedFechados.add(row);
+    else selectedFechados.delete(row);
+  });
+  updateBulkBarFechados();
+});
+document.getElementById("btnExcluirSelecionadosFechados").addEventListener("click", async () => {
+  const n = selectedFechados.size;
+  const ok = confirm("Excluir " + n + " incidente(s) selecionado(s)? Essa ação não pode ser desfeita e pode alterar a numeração de incidentes posteriores.");
+  if (!ok) return;
+  try {
+    const result = await apiPost("deleteBatch", { rows: [...selectedFechados] });
+    showToast(result.count + " excluído(s).", "success");
+    document.getElementById("btnBuscar").click();
+  } catch (err) {
+    showToast("Erro ao excluir em massa: " + err.message, "error");
+  }
+});
+
+function renderClosedCard(item) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      <input type="checkbox" class="sel-check-fechado" data-row="${item.row}" style="margin-top:4px;">
+      <div style="flex:1;">
+        <div class="id">${item.id} <span class="badge">fechado</span></div>
+        <div class="meta"><b>${item.evento}</b> · ${item.olt}${item.slotPon ? " · " + item.slotPon : ""}</div>
+        <div class="meta">Início: ${fmtDate(item.inicio)} · Término: ${fmtDate(item.termino)}</div>
+        <div class="actions">
+          <button type="button" class="secondary small btn-editar">Editar</button>
+          <button type="button" class="danger btn-excluir">Excluir</button>
+        </div>
+        <div class="edit-inline" style="display:none;margin-top:14px;"></div>
+      </div>
+    </div>
+  `;
+  card.querySelector(".sel-check-fechado").addEventListener("change", (e) => {
+    if (e.target.checked) selectedFechados.add(item.row);
+    else selectedFechados.delete(item.row);
+    updateBulkBarFechados();
+  });
+  card.querySelector(".btn-excluir").addEventListener("click", async () => {
+    const ok = confirm("Excluir " + item.id + " — " + item.olt + (item.slotPon ? ", " + item.slotPon : "") + "?\nEssa ação não pode ser desfeita e pode alterar a numeração de incidentes posteriores.");
+    if (!ok) return;
+    try {
+      await apiPost("delete", { row: item.row });
+      showToast(item.id + " excluído.", "success");
+      card.remove();
+    } catch (err) {
+      showToast("Erro ao excluir: " + err.message, "error");
+    }
+  });
+  const editInline = card.querySelector(".edit-inline");
+  card.querySelector(".btn-editar").addEventListener("click", () => {
+    if (editInline.style.display === "none") {
+      if (!editInline.dataset.built) buildEditForm(editInline, item);
+      editInline.style.display = "block";
+    } else {
+      editInline.style.display = "none";
+    }
+  });
+  return card;
+}
+
+function buildEditForm(container, item) {
+  container.dataset.built = "1";
+  container.innerHTML = `
+    <div class="field"><label>Evento</label><select class="e-evento"></select></div>
+    <div class="field"><label>OLT</label><select class="e-olt"></select></div>
+    <div class="field"><label>Slot/PON</label><input type="text" class="e-slotpon"></div>
+    <div class="row-2">
+      <div class="field"><label>Início</label><input type="datetime-local" class="e-inicio"></div>
+      <div class="field"><label>Término</label><input type="datetime-local" class="e-termino"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea class="e-obs"></textarea></div>
+    <div class="row-2">
+      <div class="field"><label>Horário da informação</label><input type="datetime-local" class="e-horarioinfo"></div>
+      <div class="field"><label>Fonte</label><input type="text" class="e-fonte"></div>
+    </div>
+    <button type="button" class="primary small e-salvar">Salvar alterações</button>
+    <button type="button" class="secondary small e-cancelar">Fechar</button>
+  `;
+  const eEvento = container.querySelector(".e-evento");
+  const eOlt = container.querySelector(".e-olt");
+  meta.eventos.forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = v; eEvento.appendChild(o); });
+  meta.olts.forEach(v => { const o = document.createElement("option"); o.value = v; o.textContent = v; eOlt.appendChild(o); });
+  eEvento.value = item.evento;
+  eOlt.value = item.olt;
+  container.querySelector(".e-slotpon").value = item.slotPon || "";
+  container.querySelector(".e-inicio").value = item.inicio;
+  container.querySelector(".e-termino").value = item.termino;
+  container.querySelector(".e-obs").value = item.obs || "";
+  container.querySelector(".e-horarioinfo").value = item.horarioInfo || "";
+  container.querySelector(".e-fonte").value = item.fonte || "";
+
+  container.querySelector(".e-cancelar").addEventListener("click", () => {
+    container.style.display = "none";
+  });
+  container.querySelector(".e-salvar").addEventListener("click", async () => {
+    const newEvento = eEvento.value;
+    const newOlt = eOlt.value;
+    const newSlotPon = container.querySelector(".e-slotpon").value.trim();
+    const newInicio = container.querySelector(".e-inicio").value;
+    const newTermino = container.querySelector(".e-termino").value;
+    const newObs = container.querySelector(".e-obs").value.trim();
+    const newHorarioInfo = container.querySelector(".e-horarioinfo").value;
+    const newFonte = container.querySelector(".e-fonte").value.trim();
+
+    if (!newEvento || !newOlt || !newInicio) {
+      showToast("Preencha ao menos Evento, OLT e Início.", "error");
+      return;
+    }
+    const mudouOltOuInicio = (newOlt !== item.olt) || (newInicio !== item.inicio);
+    if (mudouOltOuInicio) {
+      const ok = confirm("Você alterou Início ou OLT — isso pode mudar a numeração (ID_INCIDENTE) desse e de outros incidentes na sequência. Confirma a alteração?");
+      if (!ok) return;
+    }
+    try {
+      await apiPost("update", {
+        row: item.row, evento: newEvento, olt: newOlt, slotPon: newSlotPon,
+        inicio: newInicio, termino: newTermino, obs: newObs,
+        horarioInfo: newHorarioInfo, fonte: newFonte
+      });
+      showToast(item.id + " atualizado.", "success");
+      document.getElementById("btnBuscar").click();
+    } catch (err) {
+      showToast("Erro ao salvar: " + err.message, "error");
+    }
+  });
+}
+
+// ============================================================
+// OLTS E EVENTOS
+// ============================================================
+function renderManagedList(containerEl, values, listType) {
+  containerEl.innerHTML = "";
+  if (!values.length) {
+    containerEl.innerHTML = '<div class="empty">Nenhum valor cadastrado.</div>';
+    return;
+  }
+  values.forEach(v => {
+    const row = document.createElement("div");
+    row.className = "list-row";
+    row.innerHTML = `
+      <div class="top-line">
+        <span class="valor">${v}</span>
+        <div class="btns">
+          <button type="button" class="secondary small btn-renomear">Renomear</button>
+          <button type="button" class="danger small btn-excluir">Excluir</button>
+        </div>
+      </div>
+      <div class="rename-inline">
+        <input type="text" value="${v}">
+        <button type="button" class="primary small btn-salvar">Salvar</button>
+      </div>
+    `;
+    const inline = row.querySelector(".rename-inline");
+    row.querySelector(".btn-renomear").addEventListener("click", () => {
+      inline.style.display = inline.style.display === "flex" ? "none" : "flex";
+    });
+    row.querySelector(".btn-salvar").addEventListener("click", async () => {
+      const novo = inline.querySelector("input").value.trim();
+      if (!novo || novo === v) return;
+      try {
+        const result = await apiPost("listManage", { listType, op: "rename", value: v, newValue: novo });
+        showToast("Renomeado. " + result.rowsUpdated + " linha(s) da planilha atualizada(s).", "success");
+        await loadMeta();
+        renderManagedList(document.getElementById(listType === "olt" ? "listaOlts" : "listaEventos"),
+          listType === "olt" ? meta.olts : meta.eventos, listType);
+      } catch (err) {
+        showToast("Erro ao renomear: " + err.message, "error");
+      }
+    });
+    row.querySelector(".btn-excluir").addEventListener("click", async () => {
+      const ok = confirm('Excluir "' + v + '" da lista de sugestões? Registros já lançados com esse valor não são alterados.');
+      if (!ok) return;
+      try {
+        await apiPost("listManage", { listType, op: "delete", value: v });
+        showToast("Removido da lista.", "success");
+        await loadMeta();
+        renderManagedList(document.getElementById(listType === "olt" ? "listaOlts" : "listaEventos"),
+          listType === "olt" ? meta.olts : meta.eventos, listType);
+      } catch (err) {
+        showToast("Erro ao excluir: " + err.message, "error");
+      }
+    });
+    containerEl.appendChild(row);
+  });
+}
+
+document.getElementById("btnAddOlt").addEventListener("click", async () => {
+  const input = document.getElementById("novaOltInput");
+  const v = input.value.trim();
+  if (!v) return;
+  try {
+    await apiPost("listManage", { listType: "olt", op: "add", value: v });
+    input.value = "";
+    await loadMeta();
+    renderManagedList(document.getElementById("listaOlts"), meta.olts, "olt");
+  } catch (err) { showToast("Erro: " + err.message, "error"); }
+});
+document.getElementById("btnAddEvento").addEventListener("click", async () => {
+  const input = document.getElementById("novoEventoInput");
+  const v = input.value.trim();
+  if (!v) return;
+  try {
+    await apiPost("listManage", { listType: "evento", op: "add", value: v });
+    input.value = "";
+    await loadMeta();
+    renderManagedList(document.getElementById("listaEventos"), meta.eventos, "evento");
+  } catch (err) { showToast("Erro: " + err.message, "error"); }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+if (!isConfigured) {
+  document.getElementById("configBanner").style.display = "block";
+} else {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  document.getElementById("fInicio").value =
+    now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate()) +
+    "T" + pad(now.getHours()) + ":" + pad(now.getMinutes());
+  loadFila();
+  renderFila();
+  renderPortasAtuais();
+  loadMeta();
+}
+</script>
+</body>
+</html>
