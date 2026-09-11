@@ -821,12 +821,14 @@ function renderOpenCard(item) {
         <div class="meta">Início: ${fmtDate(item.inicio)}</div>
         <div class="actions">
           <button type="button" class="secondary small btn-fechar">Fechar</button>
+          <button type="button" class="secondary small btn-editar">Editar</button>
           <button type="button" class="danger btn-excluir">Excluir</button>
         </div>
         <div class="close-inline" style="display:none;">
           <input type="datetime-local">
           <button type="button" class="primary small btn-confirmar-fechar">Confirmar</button>
         </div>
+        <div class="edit-inline" style="display:none;margin-top:14px;"></div>
       </div>
     </div>
   `;
@@ -848,6 +850,15 @@ function renderOpenCard(item) {
       loadAbertos(currentAbertosFilter());
     } catch (err) {
       showToast("Erro ao fechar: " + err.message, "error");
+    }
+  });
+  const editInline = card.querySelector(".edit-inline");
+  card.querySelector(".btn-editar").addEventListener("click", () => {
+    if (editInline.style.display === "none") {
+      if (!editInline.dataset.built) buildEditForm(editInline, item, () => loadAbertos(currentAbertosFilter()));
+      editInline.style.display = "block";
+    } else {
+      editInline.style.display = "none";
     }
   });
   card.querySelector(".btn-excluir").addEventListener("click", async () => {
@@ -1010,7 +1021,7 @@ function renderClosedCard(item) {
   const editInline = card.querySelector(".edit-inline");
   card.querySelector(".btn-editar").addEventListener("click", () => {
     if (editInline.style.display === "none") {
-      if (!editInline.dataset.built) buildEditForm(editInline, item);
+      if (!editInline.dataset.built) buildEditForm(editInline, item, () => document.getElementById("btnBuscar").click());
       editInline.style.display = "block";
     } else {
       editInline.style.display = "none";
@@ -1019,7 +1030,7 @@ function renderClosedCard(item) {
   return card;
 }
 
-function buildEditForm(container, item) {
+function buildEditForm(container, item, onSaved) {
   container.dataset.built = "1";
   container.innerHTML = `
     <div class="field"><label>Evento</label><select class="e-evento"></select></div>
@@ -1079,7 +1090,7 @@ function buildEditForm(container, item) {
         horarioInfo: newHorarioInfo, fonte: newFonte
       });
       showToast(item.id + " atualizado.", "success");
-      document.getElementById("btnBuscar").click();
+      if (onSaved) onSaved();
     } catch (err) {
       showToast("Erro ao salvar: " + err.message, "error");
     }
