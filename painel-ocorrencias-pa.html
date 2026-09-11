@@ -55,7 +55,7 @@
   nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
   .panel{display:none;}
   .panel.active{display:block;}
-  .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px;}
   .field label{
     display:block;font-size:10.5px;color:var(--text-dim);margin-bottom:6px;
     font-family:var(--mono);letter-spacing:0.06em;text-transform:uppercase;
@@ -92,18 +92,27 @@
   .metric .value{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:4px;}
   .tbl{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
   .tbl-row{
-    display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr 1.2fr 1.6fr;
-    font-family:var(--mono);font-size:10.5px;border-top:1px solid var(--border);
+    display:grid;grid-template-columns:1fr 1.3fr 1fr 1.1fr 1.3fr;
+    font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);
   }
   .tbl-row:first-child{border-top:none;}
-  .tbl-row > div{padding:9px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .tbl-head{background:var(--surface-2);color:var(--accent);font-size:10px;letter-spacing:0.04em;text-transform:uppercase;}
+  .tbl-row > div{padding:11px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tbl-head{background:var(--surface-2);color:var(--accent);font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;}
   .tbl-body{background:var(--surface);}
   .tbl-body:nth-child(odd){background:var(--surface-2);}
+  .pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap;}
+  .pagination .info{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.02em;}
+  .pagination .btns{display:flex;gap:8px;}
+  .pagination button{
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+    font-family:var(--mono);font-size:11.5px;padding:8px 14px;border-radius:6px;cursor:pointer;
+    letter-spacing:0.03em;text-transform:uppercase;
+  }
+  .pagination button:disabled{opacity:0.4;cursor:default;}
   @media (max-width:640px){
     .filters{grid-template-columns:1fr 1fr;}
     .summary{grid-template-columns:1fr;}
-    .tbl-row{grid-template-columns:1fr;font-size:11px;}
+    .tbl-row{grid-template-columns:1fr;font-size:11.5px;}
     .tbl-head{display:none;}
   }
 </style>
@@ -133,16 +142,20 @@
   <section class="panel active" id="panel-geral">
     <div class="filters">
       <div class="field">
+        <label for="gEvento">Evento</label>
+        <select id="gEvento"></select>
+      </div>
+      <div class="field">
+        <label for="gOlt">OLT</label>
+        <select id="gOlt"></select>
+      </div>
+      <div class="field">
         <label for="gStart">De</label>
         <input type="date" id="gStart">
       </div>
       <div class="field">
         <label for="gEnd">Até</label>
         <input type="date" id="gEnd">
-      </div>
-      <div class="field">
-        <label for="gOlt">OLT</label>
-        <select id="gOlt"></select>
       </div>
       <div class="field" style="display:flex;align-items:flex-end;">
         <button type="button" class="primary" id="btnFiltrarGeral" style="width:100%;">Filtrar</button>
@@ -268,8 +281,26 @@ async function loadMeta() {
   fillPlainSelect(document.getElementById("gOlt"), meta.olts, "Todas");
   fillPlainSelect(document.getElementById("aOlt"), meta.olts, "Todas");
   fillPlainSelect(document.getElementById("hOlt"), meta.olts, "Todas");
+  fillPlainSelect(document.getElementById("gEvento"), meta.eventos, "Todos");
   fillPlainSelect(document.getElementById("aEvento"), meta.eventos, "Todos");
   fillPlainSelect(document.getElementById("hEvento"), meta.eventos, "Todos");
+}
+
+// ---------- datas padrão (recalculadas a cada carregamento) ----------
+function pad2(n) { return String(n).padStart(2, "0"); }
+function toDateInputValue(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+
+function applyDefaultDates() {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastOfMonth = lastDayOfMonth(today);
+
+  document.getElementById("gStart").value = toDateInputValue(firstOfMonth);
+  document.getElementById("gEnd").value = toDateInputValue(lastOfMonth);
+
+  document.getElementById("aStart").value = toDateInputValue(today);
+  document.getElementById("aEnd").value = toDateInputValue(lastOfMonth);
 }
 
 // ---------- tabs ----------
@@ -358,12 +389,17 @@ function renderTrendChart(container, data) {
 
 // ---------- Visão geral ----------
 function currentGeralFilter() {
-  return { olt: document.getElementById("gOlt").value, start: document.getElementById("gStart").value, end: document.getElementById("gEnd").value };
+  return {
+    evento: document.getElementById("gEvento").value,
+    olt: document.getElementById("gOlt").value,
+    start: document.getElementById("gStart").value,
+    end: document.getElementById("gEnd").value
+  };
 }
 async function loadVisaoGeral() {
   const f = currentGeralFilter();
   try {
-    const result = await apiGet("queryEntries", { status: "all", olt: f.olt, start: f.start, end: f.end });
+    const result = await apiGet("queryEntries", Object.assign({ status: "all" }, f));
     const items = result.items;
     const abertos = items.filter(it => !it.termino).length;
     const fechados = items.length - abertos;
@@ -419,6 +455,8 @@ async function loadEventosAgora() {
 document.getElementById("btnFiltrarAgora").addEventListener("click", loadEventosAgora);
 
 // ---------- Histórico geral ----------
+let histOffset = 0;
+
 function currentHistoricoFilter() {
   return {
     evento: document.getElementById("hEvento").value,
@@ -427,23 +465,24 @@ function currentHistoricoFilter() {
     end: document.getElementById("hEnd").value
   };
 }
-async function loadHistorico() {
+async function loadHistorico(preserveOffset) {
+  if (!preserveOffset) histOffset = 0;
   const f = currentHistoricoFilter();
   const container = document.getElementById("tabelaHistorico");
   const hint = document.getElementById("hintHistorico");
   container.innerHTML = '<div class="empty">Carregando...</div>';
   hint.textContent = "";
   try {
-    const result = await apiGet("queryEntries", Object.assign({ status: "all", limit: HIST_LIMIT }, f));
+    const result = await apiGet("queryEntries", Object.assign({ status: "all", limit: HIST_LIMIT, offset: histOffset }, f));
     const items = result.items;
     if (!items.length) { container.innerHTML = '<div class="empty">Nenhum evento encontrado com esses filtros.</div>'; return; }
-    if (result.capped) {
-      hint.textContent = "Mostrando os " + items.length + " mais recentes de " + result.total + " encontrados — refine os filtros pra ver os demais.";
-    } else {
-      hint.textContent = items.length + " evento(s) encontrado(s).";
-    }
+
+    const totalPages = Math.max(1, Math.ceil(result.total / HIST_LIMIT));
+    const currentPage = Math.floor(result.offset / HIST_LIMIT) + 1;
+    hint.textContent = result.total + " evento(s) encontrado(s).";
+
     let html = '<div class="tbl">';
-    html += '<div class="tbl-row tbl-head"><div>Evento</div><div>Início</div><div>OLT</div><div>Slot/PON</div><div>Conclusão</div><div>Observação</div></div>';
+    html += '<div class="tbl-row tbl-head"><div>Evento</div><div>Início</div><div>OLT</div><div>Slot/PON</div><div>Conclusão</div></div>';
     items.forEach(it => {
       const conclusao = it.termino ? fmtDate(it.termino) : '<span class="badge" style="color:var(--danger);border-color:var(--danger);margin-left:0;">Aberto</span>';
       html += `<div class="tbl-row tbl-body">
@@ -452,21 +491,33 @@ async function loadHistorico() {
         <div>${escapeHtml(it.olt)}</div>
         <div>${escapeHtml(it.slotPon)}</div>
         <div>${conclusao}</div>
-        <div title="${escapeHtml(it.obs)}">${escapeHtml(it.obs)}</div>
       </div>`;
     });
     html += "</div>";
+    html += `<div class="pagination">
+      <div class="info">Página ${currentPage} de ${totalPages}</div>
+      <div class="btns">
+        <button type="button" id="histPrev" ${currentPage <= 1 ? "disabled" : ""}>‹ Anterior</button>
+        <button type="button" id="histNext" ${currentPage >= totalPages ? "disabled" : ""}>Próxima ›</button>
+      </div>
+    </div>`;
     container.innerHTML = html;
+
+    const prevBtn = document.getElementById("histPrev");
+    const nextBtn = document.getElementById("histNext");
+    if (prevBtn) prevBtn.addEventListener("click", () => { histOffset = Math.max(0, histOffset - HIST_LIMIT); loadHistorico(true); });
+    if (nextBtn) nextBtn.addEventListener("click", () => { histOffset += HIST_LIMIT; loadHistorico(true); });
   } catch (err) {
     container.innerHTML = '<div class="empty">Erro ao carregar: ' + escapeHtml(err.message) + "</div>";
   }
 }
-document.getElementById("btnFiltrarHistorico").addEventListener("click", loadHistorico);
+document.getElementById("btnFiltrarHistorico").addEventListener("click", () => loadHistorico(false));
 
 // ---------- init ----------
 if (!isConfigured) {
   document.getElementById("configBanner").style.display = "block";
 } else {
+  applyDefaultDates();
   loadMeta().then(() => {
     loadVisaoGeral();
     loadEventosAgora();
@@ -476,3 +527,4 @@ if (!isConfigured) {
 </script>
 </body>
 </html>
+</parameter>
