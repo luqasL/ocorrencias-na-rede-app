@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Ocorrências PA</title>
+<style>
+  :root{
+    --bg:#0a0d12;
+    --surface:#12161d;
+    --surface-2:#1a2029;
+    --border:#262e38;
+    --text:#e4e9ee;
+    --text-dim:#7c8894;
+    --accent:#22d3ee;
+    --accent-ink:#06232a;
+    --danger:#f87171;
+    --success:#34d399;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 8px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.45;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px;}
+  header.top{margin-bottom:6px;}
+  header.top h1{
+    font-size:19px;margin:0;font-weight:600;letter-spacing:0.02em;
+    font-family:var(--mono);text-transform:uppercase;
+  }
+  header.top p{
+    margin:6px 0 18px 17px;color:var(--text-dim);font-size:11px;
+    font-family:var(--mono);letter-spacing:0.06em;text-transform:uppercase;
+  }
+  .accent-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);
+    margin-right:9px;box-shadow:0 0 0 3px rgba(34,211,238,0.18);
+  }
+  .banner{
+    background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--accent);
+    border-radius:var(--radius);padding:16px 18px;margin-bottom:24px;font-size:14px;
+  }
+  .banner.error{border-left-color:var(--danger);}
+  .banner h3{margin:0 0 6px;font-size:14px;}
+  .banner code{background:var(--bg);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12.5px;}
+  nav.tabs{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:24px;border-bottom:1px solid var(--border);}
+  nav.tabs button{
+    background:none;border:none;color:var(--text-dim);font-family:var(--mono);font-size:12.5px;
+    padding:10px 2px;cursor:pointer;border-bottom:2px solid transparent;transform:translateY(1px);
+    white-space:nowrap;letter-spacing:0.03em;text-transform:uppercase;
+  }
+  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+  .field label{
+    display:block;font-size:10.5px;color:var(--text-dim);margin-bottom:6px;
+    font-family:var(--mono);letter-spacing:0.06em;text-transform:uppercase;
+  }
+  input, select{
+    width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:9px 10px;font-family:var(--mono);font-size:12.5px;
+  }
+  input:focus-visible, select:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  button.primary{
+    background:var(--accent);color:var(--accent-ink);border:none;font-family:var(--mono);
+    font-weight:600;font-size:12.5px;padding:10px 18px;border-radius:6px;cursor:pointer;
+    letter-spacing:0.04em;text-transform:uppercase;
+  }
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
+  .card .id{font-family:var(--mono);font-size:12.5px;color:var(--accent);font-weight:600;}
+  .card .meta{color:var(--text-dim);font-size:12px;margin-top:3px;font-family:var(--mono);}
+  .card .meta b{color:var(--text);font-weight:500;}
+  .badge{
+    display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);
+    font-family:var(--mono);letter-spacing:0.03em;text-transform:uppercase;margin-left:6px;
+  }
+  .empty{color:var(--text-dim);font-size:14px;padding:28px 0;text-align:center;font-family:var(--sans);}
+  .hint{font-size:11.5px;color:var(--text-dim);margin-bottom:12px;font-family:var(--sans);}
+  .section-title{
+    font-size:12.5px;margin:26px 0 12px;font-weight:600;
+    font-family:var(--mono);letter-spacing:0.05em;text-transform:uppercase;
+  }
+  .section-title:first-of-type{margin-top:0;}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+  .metric .label{font-family:var(--mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;}
+  .metric .value{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:4px;}
+  .tbl{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .tbl-row{
+    display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr 1.2fr 1.6fr;
+    font-family:var(--mono);font-size:10.5px;border-top:1px solid var(--border);
+  }
+  .tbl-row:first-child{border-top:none;}
+  .tbl-row > div{padding:9px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tbl-head{background:var(--surface-2);color:var(--accent);font-size:10px;letter-spacing:0.04em;text-transform:uppercase;}
+  .tbl-body{background:var(--surface);}
+  .tbl-body:nth-child(odd){background:var(--surface-2);}
+  @media (max-width:640px){
+    .filters{grid-template-columns:1fr 1fr;}
+    .summary{grid-template-columns:1fr;}
+    .tbl-row{grid-template-columns:1fr;font-size:11px;}
+    .tbl-head{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1><span class="accent-dot"></span>Painel Ocorrências PA</h1>
+    <p>Análise de rede · Ocorrências PA</p>
+  </header>
+
+  <div id="configBanner" class="banner error" style="display:none;">
+    <h3>Configuração necessária</h3>
+    <p>Abra este arquivo em um editor de texto e preencha <code>WEBAPP_URL</code> e
+    <code>ACCESS_TOKEN</code> no topo do bloco <code>&lt;script&gt;</code> (mesmos valores do
+    registrador).</p>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="geral" class="active">Visão geral</button>
+    <button data-tab="agora">Eventos agora</button>
+    <button data-tab="historico">Histórico geral</button>
+  </nav>
+
+  <!-- ===================== VISÃO GERAL ===================== -->
+  <section class="panel active" id="panel-geral">
+    <div class="filters">
+      <div class="field">
+        <label for="gStart">De</label>
+        <input type="date" id="gStart">
+      </div>
+      <div class="field">
+        <label for="gEnd">Até</label>
+        <input type="date" id="gEnd">
+      </div>
+      <div class="field">
+        <label for="gOlt">OLT</label>
+        <select id="gOlt"></select>
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;">
+        <button type="button" class="primary" id="btnFiltrarGeral" style="width:100%;">Filtrar</button>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="metric">
+        <div class="label" style="color:var(--danger);">Abertos</div>
+        <div class="value" style="color:var(--danger);" id="mAbertos">—</div>
+      </div>
+      <div class="metric">
+        <div class="label" style="color:var(--success);">Fechados</div>
+        <div class="value" style="color:var(--success);" id="mFechados">—</div>
+      </div>
+      <div class="metric">
+        <div class="label" style="color:var(--text-dim);">Total</div>
+        <div class="value" id="mTotal">—</div>
+      </div>
+    </div>
+
+    <div class="section-title">Ocorrências por OLT</div>
+    <div id="chartOlt"></div>
+
+    <div class="section-title">Por tipo de evento</div>
+    <div id="chartEvento"></div>
+
+    <div class="section-title">Tendência (por mês)</div>
+    <div id="chartTrend"></div>
+  </section>
+
+  <!-- ===================== EVENTOS AGORA ===================== -->
+  <section class="panel" id="panel-agora">
+    <div class="filters">
+      <div class="field">
+        <label for="aEvento">Evento</label>
+        <select id="aEvento"></select>
+      </div>
+      <div class="field">
+        <label for="aOlt">OLT</label>
+        <select id="aOlt"></select>
+      </div>
+      <div class="field">
+        <label for="aStart">De</label>
+        <input type="date" id="aStart">
+      </div>
+      <div class="field">
+        <label for="aEnd">Até</label>
+        <input type="date" id="aEnd">
+      </div>
+    </div>
+    <button type="button" class="primary" id="btnFiltrarAgora" style="margin-bottom:18px;">Filtrar</button>
+    <div id="listaAgora"></div>
+  </section>
+
+  <!-- ===================== HISTÓRICO GERAL ===================== -->
+  <section class="panel" id="panel-historico">
+    <div class="filters">
+      <div class="field">
+        <label for="hEvento">Evento</label>
+        <select id="hEvento"></select>
+      </div>
+      <div class="field">
+        <label for="hOlt">OLT</label>
+        <select id="hOlt"></select>
+      </div>
+      <div class="field">
+        <label for="hStart">De</label>
+        <input type="date" id="hStart">
+      </div>
+      <div class="field">
+        <label for="hEnd">Até</label>
+        <input type="date" id="hEnd">
+      </div>
+    </div>
+    <button type="button" class="primary" id="btnFiltrarHistorico" style="margin-bottom:14px;">Filtrar</button>
+    <div class="hint" id="hintHistorico"></div>
+    <div id="tabelaHistorico"></div>
+  </section>
+</div>
+
+<script>
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzw5sW_PDPBdjerDAgkfXtaKpUobNbwc1nyxoDhDAU2ngvUD5dZlZ9Zs8qOsx1LCfsT/exec";
+const ACCESS_TOKEN = "1251@amz";
+const isConfigured = !WEBAPP_URL.startsWith("COLE_") && !ACCESS_TOKEN.startsWith("COLE_");
+const HIST_LIMIT = 50;
+
+let meta = { olts: [], eventos: [], fontes: [] };
+const PALETTE = ["#22d3ee", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#fb923c", "#60a5fa", "#f472b6"];
+
+async function apiGet(action, params) {
+  const qs = new URLSearchParams(Object.assign({ token: ACCESS_TOKEN, action }, params || {}));
+  const res = await fetch(WEBAPP_URL + "?" + qs.toString());
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || "Erro desconhecido");
+  return json.data;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const [d, t] = iso.split("T");
+  const [y, m, day] = d.split("-");
+  return day + "/" + m + "/" + y + (t ? " " + t : "");
+}
+
+function fillPlainSelect(selectEl, values, allLabel) {
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = allLabel;
+  selectEl.appendChild(blank);
+  values.forEach(v => {
+    const o = document.createElement("option"); o.value = v; o.textContent = v;
+    selectEl.appendChild(o);
+  });
+}
+
+async function loadMeta() {
+  meta = await apiGet("meta");
+  fillPlainSelect(document.getElementById("gOlt"), meta.olts, "Todas");
+  fillPlainSelect(document.getElementById("aOlt"), meta.olts, "Todas");
+  fillPlainSelect(document.getElementById("hOlt"), meta.olts, "Todas");
+  fillPlainSelect(document.getElementById("aEvento"), meta.eventos, "Todos");
+  fillPlainSelect(document.getElementById("hEvento"), meta.eventos, "Todos");
+}
+
+// ---------- tabs ----------
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+// ---------- gráficos ----------
+function groupBy(items, field) {
+  const map = {};
+  items.forEach(it => {
+    const key = it[field] || "(sem valor)";
+    map[key] = (map[key] || 0) + 1;
+  });
+  return Object.entries(map).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+}
+
+function groupByMonth(items) {
+  const map = {};
+  items.forEach(it => {
+    if (!it.inicio) return;
+    const key = it.inicio.slice(0, 7);
+    map[key] = (map[key] || 0) + 1;
+  });
+  return Object.keys(map).sort().map(k => ({ label: k, value: map[k] }));
+}
+
+function renderBarList(container, data, color) {
+  if (!data.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
+  const max = Math.max(...data.map(d => d.value), 1);
+  container.innerHTML = data.slice(0, 8).map(d => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+      <div style="width:110px;font-size:11px;font-family:var(--mono);color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(d.label)}</div>
+      <div style="flex:1;background:var(--surface-2);border-radius:4px;height:16px;"><div style="width:${(d.value / max * 100).toFixed(1)}%;background:${color};height:16px;border-radius:4px;"></div></div>
+      <div style="width:30px;font-size:11px;font-family:var(--mono);text-align:right;">${d.value}</div>
+    </div>
+  `).join("");
+}
+
+function renderPieChart(container, data) {
+  const nonZero = data.filter(d => d.value > 0);
+  if (!nonZero.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
+  const total = nonZero.reduce((s, d) => s + d.value, 0);
+  const cx = 90, cy = 90, r = 80;
+  let paths = "";
+  if (nonZero.length === 1) {
+    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${PALETTE[0]}"></circle>`;
+  } else {
+    let angle = -Math.PI / 2;
+    nonZero.forEach((d, i) => {
+      const frac = d.value / total;
+      const sweep = frac * 2 * Math.PI;
+      const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+      const endAngle = angle + sweep;
+      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+      const largeArc = sweep > Math.PI ? 1 : 0;
+      const color = PALETTE[i % PALETTE.length];
+      paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${color}"></path>`;
+      angle = endAngle;
+    });
+  }
+  const legend = nonZero.map((d, i) => `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${PALETTE[i % PALETTE.length]};display:inline-block;flex:none;"></span>
+      <span style="font-size:11px;font-family:var(--mono);color:var(--text-dim);">${escapeHtml(d.label)} (${d.value})</span>
+    </div>
+  `).join("");
+  container.innerHTML = `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+    <svg viewBox="0 0 180 180" width="150" height="150">${paths}</svg>
+    <div>${legend}</div>
+  </div>`;
+}
+
+function renderTrendChart(container, data) {
+  if (!data.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
+  const max = Math.max(...data.map(d => d.value), 1);
+  const bars = data.map(d => `<div title="${d.label}: ${d.value}" style="flex:1;background:var(--surface-2);border-radius:3px 3px 0 0;height:${Math.max(d.value / max * 100, 4).toFixed(1)}%;position:relative;"><div style="position:absolute;bottom:0;left:0;right:0;background:var(--accent);height:100%;border-radius:3px 3px 0 0;"></div></div>`).join("");
+  const labels = data.map(d => `<div style="flex:1;text-align:center;font-size:9px;color:var(--text-dim);font-family:var(--mono);">${d.label.slice(5)}</div>`).join("");
+  container.innerHTML = `<div style="display:flex;align-items:flex-end;gap:6px;height:80px;">${bars}</div><div style="display:flex;gap:6px;margin-top:6px;">${labels}</div>`;
+}
+
+// ---------- Visão geral ----------
+function currentGeralFilter() {
+  return { olt: document.getElementById("gOlt").value, start: document.getElementById("gStart").value, end: document.getElementById("gEnd").value };
+}
+async function loadVisaoGeral() {
+  const f = currentGeralFilter();
+  try {
+    const result = await apiGet("queryEntries", { status: "all", olt: f.olt, start: f.start, end: f.end });
+    const items = result.items;
+    const abertos = items.filter(it => !it.termino).length;
+    const fechados = items.length - abertos;
+    document.getElementById("mAbertos").textContent = abertos;
+    document.getElementById("mFechados").textContent = fechados;
+    document.getElementById("mTotal").textContent = items.length;
+    renderBarList(document.getElementById("chartOlt"), groupBy(items, "olt"), "var(--accent)");
+    renderPieChart(document.getElementById("chartEvento"), groupBy(items, "evento"));
+    renderTrendChart(document.getElementById("chartTrend"), groupByMonth(items));
+  } catch (err) {
+    document.getElementById("mAbertos").textContent = "erro";
+  }
+}
+document.getElementById("btnFiltrarGeral").addEventListener("click", loadVisaoGeral);
+
+// ---------- Eventos agora ----------
+function currentAgoraFilter() {
+  return {
+    evento: document.getElementById("aEvento").value,
+    olt: document.getElementById("aOlt").value,
+    start: document.getElementById("aStart").value,
+    end: document.getElementById("aEnd").value
+  };
+}
+async function loadEventosAgora() {
+  const f = currentAgoraFilter();
+  const container = document.getElementById("listaAgora");
+  container.innerHTML = '<div class="empty">Carregando...</div>';
+  try {
+    const result = await apiGet("queryEntries", Object.assign({ status: "open" }, f));
+    const items = result.items;
+    if (!items.length) { container.innerHTML = '<div class="empty">Nenhum evento em aberto com esses filtros.</div>'; return; }
+    const oltCounts = {};
+    items.forEach(it => { oltCounts[it.olt] = (oltCounts[it.olt] || 0) + 1; });
+    container.innerHTML = "";
+    items.forEach(it => {
+      const multi = oltCounts[it.olt] > 1;
+      const card = document.createElement("div");
+      card.className = "card";
+      if (multi) card.style.borderLeft = "3px solid var(--danger)";
+      card.innerHTML = `
+        <div class="id">${escapeHtml(it.id)}${multi ? '<span class="badge" style="color:var(--danger);border-color:var(--danger);">' + oltCounts[it.olt] + ' abertos nesta OLT</span>' : ""}</div>
+        <div class="meta"><b>${escapeHtml(it.evento)}</b> · ${escapeHtml(it.olt)}${it.slotPon ? " · " + escapeHtml(it.slotPon) : ""}</div>
+        <div class="meta">Início: ${fmtDate(it.inicio)}</div>
+        ${it.obs ? '<div style="margin-top:8px;font-size:12.5px;color:var(--text);font-family:var(--sans);">' + escapeHtml(it.obs) + "</div>" : ""}
+      `;
+      container.appendChild(card);
+    });
+  } catch (err) {
+    container.innerHTML = '<div class="empty">Erro ao carregar: ' + escapeHtml(err.message) + "</div>";
+  }
+}
+document.getElementById("btnFiltrarAgora").addEventListener("click", loadEventosAgora);
+
+// ---------- Histórico geral ----------
+function currentHistoricoFilter() {
+  return {
+    evento: document.getElementById("hEvento").value,
+    olt: document.getElementById("hOlt").value,
+    start: document.getElementById("hStart").value,
+    end: document.getElementById("hEnd").value
+  };
+}
+async function loadHistorico() {
+  const f = currentHistoricoFilter();
+  const container = document.getElementById("tabelaHistorico");
+  const hint = document.getElementById("hintHistorico");
+  container.innerHTML = '<div class="empty">Carregando...</div>';
+  hint.textContent = "";
+  try {
+    const result = await apiGet("queryEntries", Object.assign({ status: "all", limit: HIST_LIMIT }, f));
+    const items = result.items;
+    if (!items.length) { container.innerHTML = '<div class="empty">Nenhum evento encontrado com esses filtros.</div>'; return; }
+    if (result.capped) {
+      hint.textContent = "Mostrando os " + items.length + " mais recentes de " + result.total + " encontrados — refine os filtros pra ver os demais.";
+    } else {
+      hint.textContent = items.length + " evento(s) encontrado(s).";
+    }
+    let html = '<div class="tbl">';
+    html += '<div class="tbl-row tbl-head"><div>Evento</div><div>Início</div><div>OLT</div><div>Slot/PON</div><div>Conclusão</div><div>Observação</div></div>';
+    items.forEach(it => {
+      const conclusao = it.termino ? fmtDate(it.termino) : '<span class="badge" style="color:var(--danger);border-color:var(--danger);margin-left:0;">Aberto</span>';
+      html += `<div class="tbl-row tbl-body">
+        <div>${escapeHtml(it.evento)}</div>
+        <div>${fmtDate(it.inicio)}</div>
+        <div>${escapeHtml(it.olt)}</div>
+        <div>${escapeHtml(it.slotPon)}</div>
+        <div>${conclusao}</div>
+        <div title="${escapeHtml(it.obs)}">${escapeHtml(it.obs)}</div>
+      </div>`;
+    });
+    html += "</div>";
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<div class="empty">Erro ao carregar: ' + escapeHtml(err.message) + "</div>";
+  }
+}
+document.getElementById("btnFiltrarHistorico").addEventListener("click", loadHistorico);
+
+// ---------- init ----------
+if (!isConfigured) {
+  document.getElementById("configBanner").style.display = "block";
+} else {
+  loadMeta().then(() => {
+    loadVisaoGeral();
+    loadEventosAgora();
+    loadHistorico();
+  });
+}
+</script>
+</body>
+</html>
