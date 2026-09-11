@@ -290,16 +290,21 @@ async function loadMeta() {
 function pad2(n) { return String(n).padStart(2, "0"); }
 function toDateInputValue(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
 function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+function startOfWeek(d) {
+  // Domingo é o início da semana (getDay() === 0)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+}
 
 function applyDefaultDates() {
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastOfMonth = lastDayOfMonth(today);
+  const weekStart = startOfWeek(today);
 
   document.getElementById("gStart").value = toDateInputValue(firstOfMonth);
   document.getElementById("gEnd").value = toDateInputValue(lastOfMonth);
 
-  document.getElementById("aStart").value = toDateInputValue(today);
+  document.getElementById("aStart").value = toDateInputValue(weekStart);
   document.getElementById("aEnd").value = toDateInputValue(lastOfMonth);
 }
 
