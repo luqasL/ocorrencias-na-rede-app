@@ -223,6 +223,14 @@
         <select id="hOlt"></select>
       </div>
       <div class="field">
+        <label for="hSlot">Slot</label>
+        <select id="hSlot"></select>
+      </div>
+      <div class="field">
+        <label for="hPon">PON</label>
+        <select id="hPon"></select>
+      </div>
+      <div class="field">
         <label for="hStart">De</label>
         <input type="date" id="hStart">
       </div>
@@ -284,15 +292,19 @@ async function loadMeta() {
   fillPlainSelect(document.getElementById("gEvento"), meta.eventos, "Todos");
   fillPlainSelect(document.getElementById("aEvento"), meta.eventos, "Todos");
   fillPlainSelect(document.getElementById("hEvento"), meta.eventos, "Todos");
+  fillNumberSelect(document.getElementById("hSlot"), 1, 30, "Todos");
+  fillNumberSelect(document.getElementById("hPon"), 1, 30, "Todos");
 }
 
-// ---------- datas padrão (recalculadas a cada carregamento) ----------
-function pad2(n) { return String(n).padStart(2, "0"); }
-function toDateInputValue(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
-function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
-function startOfWeek(d) {
-  // Domingo é o início da semana (getDay() === 0)
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+function fillNumberSelect(selectEl, min, max, allLabel) {
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = allLabel;
+  selectEl.appendChild(blank);
+  for (let i = min; i <= max; i++) {
+    const o = document.createElement("option"); o.value = i; o.textContent = i;
+    selectEl.appendChild(o);
+  }
 }
 
 function applyDefaultDates() {
@@ -466,6 +478,8 @@ function currentHistoricoFilter() {
   return {
     evento: document.getElementById("hEvento").value,
     olt: document.getElementById("hOlt").value,
+    slot: document.getElementById("hSlot").value,
+    pon: document.getElementById("hPon").value,
     start: document.getElementById("hStart").value,
     end: document.getElementById("hEnd").value
   };
