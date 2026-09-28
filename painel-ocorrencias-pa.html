@@ -1,557 +1,2530 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-tema="claro">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel Ocorrências PA</title>
+<title>Painel de ocorrências na rede</title>
 <style>
-  :root{
-    --bg:#0a0d12;
-    --surface:#12161d;
-    --surface-2:#1a2029;
-    --border:#262e38;
-    --text:#e4e9ee;
-    --text-dim:#7c8894;
-    --accent:#22d3ee;
-    --accent-ink:#06232a;
-    --danger:#f87171;
-    --success:#34d399;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --radius: 8px;
+/* ==========================================================================
+   PAINEL DE OCORRÊNCIAS NA REDE — v2
+   Linguagem "Mesa de operação": plano de trabalho claro (papel de engenharia)
+   sob uma barra escura de instrumento. Painéis chapados, fio de 1px, sem
+   sombra — só o tooltip flutua. A ousadia está concentrada no quadro de
+   status: veredito grande + régua de censo dos locais.
+   Paleta de séries e de status vem do sistema validado; validador rodado
+   contra as superfícies deste arquivo (claro #FCFDFE / escuro #191F26).
+   Maquete: dados de exemplo no fim do arquivo, zero chamada de rede.
+   ========================================================================== */
+
+/* ---------- tokens: plano claro ---------- */
+:root{
+  color-scheme: light;
+  --plane:#EAEEF2; --surface:#FCFDFE; --surface-2:#F4F7F9; --well:#E3E8ED;
+  --bezel:#1C2430; --bezel-2:#141C26; --bezel-ink:#EDF1F5; --bezel-ink-2:#9AA6B4; --bezel-hair:#2E3947;
+  --ink:#101620; --ink-2:#4A5563; --ink-3:#616B78;
+  --hair:#D3DAE1; --hair-2:#BDC6D0;
+  --accent:#2a78d6; --accent-on:#FFFFFF; --accent-soft:#DDE9F9; --accent-line:#A9C8EE;
+
+  /* séries categóricas — ordem canônica fixa, nunca por ranking */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7;
+
+  /* status — escala reservada, sempre com ícone + rótulo */
+  --ok:#0ca30c; --atencao:#fab219; --fora:#d03b3b;
+  --ok-track:#D7EED7; --aten-track:#FAEAC5; --fora-track:#F2D6D6;
+  /* tinta dos números de PON — precisa de contraste de texto, não de bloco */
+  --pon-fora:#bf2f2c; --pon-ok:#0a7a0a;
+  --neutro:#AEB9C5; --neutro-2:#C8D1DA;
+
+  --grid:#E2E7EC; --axis:#C6CFD8;
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --r:4px; --r-lg:6px;
+}
+/* ---------- tokens: plano escuro ---------- */
+@media (prefers-color-scheme: dark){
+  :root:not([data-tema="claro"]){
+    color-scheme: dark;
+    --plane:#12161B; --surface:#191F26; --surface-2:#1F262F; --well:#0E1216;
+    --bezel:#0B0E13; --bezel-2:#07090D; --bezel-ink:#E7ECF1; --bezel-ink-2:#8A96A4; --bezel-hair:#1D2530;
+    --ink:#EEF2F6; --ink-2:#A3AEBA; --ink-3:#8A94A0;
+    --hair:#262E37; --hair-2:#333D48;
+    --accent:#3987e5; --accent-on:#07121F; --accent-soft:#152740; --accent-line:#2E5686;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --ok-track:#123012; --aten-track:#372C11; --fora-track:#3A1E1E;
+    --pon-fora:#e56b6b; --pon-ok:#2bbd2b;
+    --neutro:#3B4653; --neutro-2:#2B3540;
+    --grid:#232B34; --axis:#38424E;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
-    -webkit-font-smoothing:antialiased;line-height:1.45;
-  }
-  .wrap{max-width:820px;margin:0 auto;padding:32px 20px 80px;}
-  header.top{margin-bottom:6px;}
-  header.top h1{
-    font-size:19px;margin:0;font-weight:600;letter-spacing:0.02em;
-    font-family:var(--mono);text-transform:uppercase;
-  }
-  header.top p{
-    margin:6px 0 18px 17px;color:var(--text-dim);font-size:11px;
-    font-family:var(--mono);letter-spacing:0.06em;text-transform:uppercase;
-  }
-  .accent-dot{
-    display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);
-    margin-right:9px;box-shadow:0 0 0 3px rgba(34,211,238,0.18);
-  }
-  .banner{
-    background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--accent);
-    border-radius:var(--radius);padding:16px 18px;margin-bottom:24px;font-size:14px;
-  }
-  .banner.error{border-left-color:var(--danger);}
-  .banner h3{margin:0 0 6px;font-size:14px;}
-  .banner code{background:var(--bg);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12.5px;}
-  nav.tabs{display:flex;flex-wrap:wrap;gap:4px 18px;margin-bottom:24px;border-bottom:1px solid var(--border);}
-  nav.tabs button{
-    background:none;border:none;color:var(--text-dim);font-family:var(--mono);font-size:12.5px;
-    padding:10px 2px;cursor:pointer;border-bottom:2px solid transparent;transform:translateY(1px);
-    white-space:nowrap;letter-spacing:0.03em;text-transform:uppercase;
-  }
-  nav.tabs button.active{color:var(--text);border-bottom-color:var(--accent);}
-  .panel{display:none;}
-  .panel.active{display:block;}
-  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px;}
-  .field label{
-    display:block;font-size:10.5px;color:var(--text-dim);margin-bottom:6px;
-    font-family:var(--mono);letter-spacing:0.06em;text-transform:uppercase;
-  }
-  input, select{
-    width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
-    border-radius:6px;padding:9px 10px;font-family:var(--mono);font-size:12.5px;
-  }
-  input:focus-visible, select:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
-  button.primary{
-    background:var(--accent);color:var(--accent-ink);border:none;font-family:var(--mono);
-    font-weight:600;font-size:12.5px;padding:10px 18px;border-radius:6px;cursor:pointer;
-    letter-spacing:0.04em;text-transform:uppercase;
-  }
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
-  .card .id{font-family:var(--mono);font-size:12.5px;color:var(--accent);font-weight:600;}
-  .card .meta{color:var(--text-dim);font-size:12px;margin-top:3px;font-family:var(--mono);}
-  .card .meta b{color:var(--text);font-weight:500;}
-  .badge{
-    display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;
-    background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);
-    font-family:var(--mono);letter-spacing:0.03em;text-transform:uppercase;margin-left:6px;
-  }
-  .empty{color:var(--text-dim);font-size:14px;padding:28px 0;text-align:center;font-family:var(--sans);}
-  .hint{font-size:11.5px;color:var(--text-dim);margin-bottom:12px;font-family:var(--sans);}
-  .section-title{
-    font-size:12.5px;margin:26px 0 12px;font-weight:600;
-    font-family:var(--mono);letter-spacing:0.05em;text-transform:uppercase;
-  }
-  .section-title:first-of-type{margin-top:0;}
-  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;}
-  .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
-  .metric .label{font-family:var(--mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;}
-  .metric .value{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:4px;}
-  .tbl{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-  .tbl-row{
-    display:grid;grid-template-columns:1fr 1.3fr 1fr 1.1fr 1.3fr;
-    font-family:var(--mono);font-size:12px;border-top:1px solid var(--border);
-  }
-  .tbl-row:first-child{border-top:none;}
-  .tbl-row > div{padding:11px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .tbl-head{background:var(--surface-2);color:var(--accent);font-size:10.5px;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;}
-  .tbl-body{background:var(--surface);}
-  .tbl-body:nth-child(odd){background:var(--surface-2);}
-  .pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap;}
-  .pagination .info{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:0.02em;}
-  .pagination .btns{display:flex;gap:8px;}
-  .pagination button{
-    background:var(--surface);border:1px solid var(--border);color:var(--text);
-    font-family:var(--mono);font-size:11.5px;padding:8px 14px;border-radius:6px;cursor:pointer;
-    letter-spacing:0.03em;text-transform:uppercase;
-  }
-  .pagination button:disabled{opacity:0.4;cursor:default;}
-  @media (max-width:640px){
-    .filters{grid-template-columns:1fr 1fr;}
-    .summary{grid-template-columns:1fr;}
-    .tbl-row{grid-template-columns:1fr;font-size:11.5px;}
-    .tbl-head{display:none;}
-  }
+}
+:root[data-tema="escuro"]{
+  color-scheme: dark;
+  --plane:#12161B; --surface:#191F26; --surface-2:#1F262F; --well:#0E1216;
+  --bezel:#0B0E13; --bezel-2:#07090D; --bezel-ink:#E7ECF1; --bezel-ink-2:#8A96A4; --bezel-hair:#1D2530;
+  --ink:#EEF2F6; --ink-2:#A3AEBA; --ink-3:#8A94A0;
+  --hair:#262E37; --hair-2:#333D48;
+  --accent:#3987e5; --accent-on:#07121F; --accent-soft:#152740; --accent-line:#2E5686;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s5:#d55181; --s6:#008300; --s7:#9085e9;
+  --ok-track:#123012; --aten-track:#372C11; --fora-track:#3A1E1E;
+  --pon-fora:#e56b6b; --pon-ok:#2bbd2b;
+  --neutro:#3B4653; --neutro-2:#2B3540;
+  --grid:#232B34; --axis:#38424E;
+}
+
+*{box-sizing:border-box;}
+html{background:var(--plane);}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.45;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit;}
+svg{display:block;}
+h1,h2,h3,h4,p{margin:0;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px;}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+
+/* ============================ bezel (barra escura) ============================ */
+.bezel{position:sticky;top:0;z-index:40;background:var(--bezel);color:var(--bezel-ink);
+  border-bottom:1px solid var(--bezel-2);}
+.bz-row{display:flex;align-items:center;gap:18px;padding:11px 22px;max-width:1560px;margin:0 auto;flex-wrap:wrap;}
+.mark{display:flex;align-items:flex-end;gap:11px;margin-right:auto;min-width:0;}
+.mark svg{width:22px;height:18px;flex:none;margin-bottom:3px;}
+.mark svg rect{fill:var(--bezel-ink-2);}
+.mark svg rect:last-child{fill:var(--accent);}
+.mark h1{font-size:16.5px;font-weight:600;letter-spacing:-.012em;line-height:1.15;white-space:nowrap;}
+.mark .who{font-size:12px;color:var(--bezel-ink-2);line-height:1.15;}
+.stamp{font-size:12.5px;color:var(--bezel-ink-2);white-space:nowrap;line-height:1.2;}
+.stamp b{display:block;color:var(--bezel-ink);font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;}
+.bz-acts{display:flex;gap:7px;flex-wrap:wrap;}
+
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:var(--r);cursor:pointer;
+  font-weight:550;font-size:13px;padding:7px 12px;white-space:nowrap;
+  border:1px solid var(--hair-2);background:var(--surface);color:var(--ink);}
+.btn:hover{background:var(--surface-2);border-color:var(--ink-3);}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{opacity:.42;cursor:default;transform:none;}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none;}
+.btn-b{background:transparent;border-color:var(--bezel-hair);color:var(--bezel-ink);}
+.btn-b:hover{background:var(--bezel-2);border-color:var(--bezel-ink-2);}
+.btn-pri{background:var(--accent);border-color:var(--accent);color:var(--accent-on);}
+.btn-pri:hover{background:var(--accent);border-color:var(--accent);filter:brightness(1.08);}
+.btn-sm{font-size:12.5px;padding:5px 9px;}
+.btn.girando svg{animation:girar .75s linear infinite;}
+@keyframes girar{to{transform:rotate(360deg);}}
+
+.abas{display:flex;max-width:1560px;margin:0 auto;padding:0 22px;gap:26px;border-top:1px solid var(--bezel-hair);overflow-x:auto;scrollbar-width:none;}
+.abas::-webkit-scrollbar{display:none;}
+.abas button{background:none;border:none;border-bottom:2px solid transparent;color:var(--bezel-ink-2);
+  font-size:14px;font-weight:550;padding:10px 0 9px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:8px;}
+.abas button:hover{color:var(--bezel-ink);}
+.abas button[aria-selected="true"]{color:#fff;border-bottom-color:var(--accent);}
+.abas .cnt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:600;
+  background:var(--bezel-hair);color:var(--bezel-ink);border-radius:999px;padding:1px 7px;}
+.abas button[aria-selected="true"] .cnt{background:var(--fora);color:#fff;}
+.abas .cnt.zero{background:var(--bezel-hair);color:var(--bezel-ink-2);}
+
+/* ============================ plano de trabalho ============================ */
+main{max-width:1560px;margin:0 auto;padding:18px 22px 64px;}
+main.recarregando{opacity:.55;}
+.vista{display:none;}
+.vista.on{display:block;}
+
+/* ---------- filtros: uma linha acima de tudo ---------- */
+.filtro{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:11px 13px;}
+.campo{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.campo label{font-size:11.5px;font-weight:600;color:var(--ink-3);letter-spacing:.005em;}
+.campo.cresce{flex:1 1 150px;}
+select,input[type=date]{background:var(--surface);border:1px solid var(--hair-2);color:var(--ink);
+  border-radius:var(--r);padding:6px 9px;font-size:13.5px;width:100%;min-width:0;}
+select{appearance:none;cursor:pointer;padding-right:24px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1.2 5 5.2 9 1.2' fill='none' stroke='%23616B78' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;}
+select:hover,input[type=date]:hover{border-color:var(--ink-3);}
+.presets{display:flex;gap:0;}
+.presets button{font-size:12.5px;font-weight:550;padding:6px 10px;background:var(--surface);
+  border:1px solid var(--hair-2);border-right-width:0;cursor:pointer;color:var(--ink-2);}
+.presets button:first-child{border-radius:var(--r) 0 0 var(--r);}
+.presets button:last-child{border-right-width:1px;border-radius:0 var(--r) var(--r) 0;}
+.presets button:hover{background:var(--surface-2);color:var(--ink);}
+.presets button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);border-color:var(--accent-line);position:relative;z-index:1;}
+.fsep{flex:1 1 0;min-width:0;}
+
+/* ---------- tira de filtros ativos ---------- */
+.ativos{display:none;align-items:center;gap:9px;flex-wrap:wrap;margin-top:9px;
+  background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--r);padding:8px 11px;}
+.ativos.on{display:flex;}
+.ativos .rot{font-size:12.5px;font-weight:600;color:var(--ink-2);}
+.chip-f{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--accent-line);
+  border-radius:999px;padding:3px 5px 3px 10px;font-size:12.5px;font-weight:600;}
+.chip-f span.k{color:var(--ink-3);font-weight:500;}
+.chip-f button{border:none;background:var(--well);color:var(--ink-2);cursor:pointer;width:19px;height:19px;
+  border-radius:50%;display:grid;place-items:center;font-size:13px;line-height:1;padding:0;}
+.chip-f button:hover{background:var(--fora);color:#fff;}
+
+/* ---------- painel genérico ---------- */
+.painel{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);margin-top:14px;}
+.painel-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:12px 15px 11px;border-bottom:1px solid var(--hair);}
+.painel-h h3{font-size:14.5px;font-weight:600;letter-spacing:-.008em;}
+.painel-sub{font-size:12.5px;color:var(--ink-3);}
+.painel-c{padding:14px 15px 16px;}
+.vazio{color:var(--ink-3);font-size:13.5px;padding:22px 14px;text-align:center;
+  border:1px dashed var(--hair-2);border-radius:var(--r);}
+
+/* ======================= QUADRO DE STATUS (o elemento forte) ======================= */
+.quadro{background:var(--surface);border:1px solid var(--hair-2);border-radius:var(--r);
+  border-top:3px solid var(--ink);margin-top:0;}
+.quadro.calmo{border-top-color:var(--ok);}
+.quadro.tenso{border-top-color:var(--atencao);}
+.quadro.grave{border-top-color:var(--fora);}
+.q-top{display:grid;grid-template-columns:minmax(190px,250px) minmax(0,1fr);gap:22px;padding:17px 18px 15px;}
+.veredito{border-right:1px solid var(--hair);padding-right:20px;}
+.v-num{font-size:clamp(46px,5.2vw,62px);font-weight:650;letter-spacing:-.035em;line-height:.9;}
+.v-txt{font-size:15.5px;font-weight:600;margin-top:7px;line-height:1.2;}
+.v-sub{font-size:12.5px;color:var(--ink-3);margin-top:5px;}
+.grave .v-num{color:var(--fora);} .tenso .v-num{color:var(--atencao);} .calmo .v-num{color:var(--ok);}
+.censo{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin-top:11px;}
+.censo span{display:inline-flex;align-items:center;gap:6px;}
+.censo b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
+.ic{width:11px;height:11px;flex:none;}
+.ic.fora{color:var(--fora);} .ic.atencao{color:var(--atencao);} .ic.ok{color:var(--ok);}
+
+/* blocos grandes só para quem está fora — o formato do quadro é a resposta */
+.fora-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:9px;}
+.bloco{text-align:left;background:var(--fora-track);border:1px solid var(--fora);border-radius:var(--r);
+  padding:11px 13px 12px;cursor:pointer;display:block;min-width:0;}
+.bloco:hover{background:var(--surface);}
+.bloco .lin{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--ink-2);}
+.bloco .nm{font-size:16px;font-weight:650;letter-spacing:-.01em;margin-top:4px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.bloco .tempo{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:23px;font-weight:650;
+  letter-spacing:-.03em;margin-top:6px;line-height:1;}
+.bloco .un{font-size:11.5px;color:var(--ink-2);margin-top:4px;}
+.aten-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+.aten{display:inline-flex;align-items:center;gap:8px;background:var(--aten-track);border:1px solid var(--atencao);
+  border-radius:var(--r);padding:6px 10px;font-size:12.5px;cursor:pointer;}
+.aten b{font-weight:650;}
+.aten .t{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2);}
+.aten:hover{background:var(--surface);}
+
+/* régua de censo — silhueta lida de longe */
+.regua-wrap{border-top:1px solid var(--hair);padding:13px 18px 15px;}
+.regua-rot{display:flex;justify-content:space-between;gap:12px;font-size:11.5px;color:var(--ink-3);margin-bottom:7px;}
+.regua{display:flex;align-items:flex-end;gap:2px;height:52px;border-bottom:1px solid var(--axis);}
+.regua i{flex:1 1 0;min-width:2px;display:block;background:var(--neutro);height:9px;border-radius:2px 2px 0 0;}
+.regua i.atencao{background:var(--atencao);height:27px;}
+.regua i.fora{background:var(--fora);height:50px;}
+/* a barrinha sob o cursor se destaca sem mudar de cor nem de tamanho */
+.regua i.viva{outline:2px solid var(--ink);outline-offset:1px;}
+.detalhes{margin-top:11px;}
+.detalhes summary{font-size:12.5px;color:var(--ink-2);cursor:pointer;width:fit-content;font-weight:550;}
+.detalhes summary:hover{color:var(--ink);}
+.lista-ok{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px;}
+.lista-ok button{font-size:12px;background:var(--well);border:1px solid transparent;border-radius:3px;
+  padding:3px 7px;color:var(--ink-2);cursor:pointer;}
+.lista-ok button:hover{border-color:var(--hair-2);color:var(--ink);background:var(--surface);}
+
+/* ============================ faixa de indicadores ============================ */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--hair);
+  border:1px solid var(--hair);border-radius:var(--r);margin-top:14px;overflow:hidden;}
+.kpi{background:var(--surface);padding:13px 15px 14px;min-width:0;}
+.kpi .k{font-size:12.5px;color:var(--ink-3);font-weight:550;}
+.kpi .v{font-size:29px;font-weight:650;letter-spacing:-.028em;margin-top:3px;line-height:1.05;}
+.kpi .v u{text-decoration:none;font-size:16px;font-weight:600;color:var(--ink-2);letter-spacing:0;}
+.kpi .d{font-size:12px;color:var(--ink-3);margin-top:3px;display:flex;align-items:center;gap:5px;}
+.kpi .d.pior{color:var(--fora);} .kpi .d.melhor{color:var(--ok);}
+.kpi .d svg{width:10px;height:10px;flex:none;}
+.kpi.alerta .v{color:var(--fora);}
+
+/* ============================ ranking fundido ============================ */
+.rk{display:flex;flex-direction:column;}
+.rk-h,.rk-row{display:grid;
+  grid-template-columns:20px minmax(86px,1.5fr) minmax(52px,1fr) 44px minmax(52px,1.1fr) 62px 58px;
+  gap:10px;align-items:center;}
+.rk-h{font-size:11.5px;color:var(--ink-3);font-weight:600;padding:0 7px 7px;border-bottom:1px solid var(--hair);}
+.rk-h .u{display:flex;align-items:center;gap:6px;}
+.rk-h .sw{width:8px;height:8px;border-radius:2px;flex:none;}
+.rk-h .num{text-align:right;}
+.rk-row{width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--hair);
+  padding:9px 7px;cursor:pointer;font:inherit;color:inherit;border-left:3px solid transparent;}
+.rk-row:last-child{border-bottom:none;}
+.rk-row:hover{background:var(--surface-2);}
+.rk-row[aria-current="true"]{background:var(--accent-soft);border-left-color:var(--accent);}
+.rk-pos{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;}
+.rk-row:nth-child(2) .rk-pos,.rk-row:nth-child(3) .rk-pos,.rk-row:nth-child(4) .rk-pos{color:var(--ink);font-weight:700;}
+.rk-nm{font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trilho{background:var(--well);border-radius:2px;height:10px;overflow:hidden;}
+.trilho i{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0;}
+.trilho.t2 i{background:var(--s2);}
+.rk-v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;text-align:right;font-weight:600;}
+.rk-v.fraco{color:var(--ink-2);font-weight:500;}
+
+/* ============================ banda por tipo de evento ============================ */
+.banda{display:flex;gap:2px;height:34px;margin-bottom:3px;}
+.banda button{border:none;padding:0;cursor:pointer;min-width:3px;position:relative;color:#fff;
+  display:grid;place-items:center;font-size:12px;font-weight:700;font-family:var(--mono);
+  font-variant-numeric:tabular-nums;border-radius:2px;}
+.banda button:first-child{border-radius:3px 2px 2px 3px;}
+.banda button:last-child{border-radius:2px 3px 3px 2px;}
+.banda button:hover{filter:brightness(1.1);}
+.banda button[aria-current="true"]{outline:2px solid var(--ink);outline-offset:2px;}
+.banda-esc{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-3);margin-bottom:12px;}
+.leg{display:flex;flex-direction:column;}
+.leg button{display:grid;grid-template-columns:10px minmax(0,1fr) 34px 40px;gap:10px;align-items:center;
+  background:none;border:none;border-bottom:1px solid var(--hair);padding:7px 6px;cursor:pointer;
+  text-align:left;font:inherit;color:inherit;border-left:3px solid transparent;}
+.leg button:last-child{border-bottom:none;}
+.leg button:hover{background:var(--surface-2);}
+.leg button[aria-current="true"]{background:var(--accent-soft);border-left-color:var(--accent);}
+.leg .sw{width:10px;height:10px;border-radius:2px;}
+.leg .nm{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* marca quem a faixa agrupou: na legenda o tipo continua nomeado e clicável */
+.leg .nm .dentro{font-style:normal;font-size:11px;color:var(--ink-3);margin-left:7px;}
+
+/* ============================ estado da sincronização ============================
+   Anunciador de instrumento: célula de lâmpada + legenda. A faixa fala da
+   IDADE DO DADO, não da rede — por isso não leva banho de vermelho: no plano
+   de trabalho o vermelho cheio já significa "local fora do ar". A cor de
+   estado fica contida na lâmpada (tracks existentes) e chega à borda só como
+   fio de 1px, que é o vocabulário da casa. Corpo chapado, sem sombra. */
+.estado{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:stretch;
+  margin:0 0 14px;border-radius:var(--r);position:relative;overflow:hidden;
+  border:1px solid var(--hair-2);background:var(--surface);color:var(--ink);}
+.estado[hidden]{display:none;}
+
+/* a lâmpada: único lugar com cor de bloco, 38px, lida de longe sem virar alarme */
+.estado .lampada{width:38px;display:grid;place-items:center;
+  background:var(--surface-2);border-right:1px solid var(--hair-2);}
+.estado .lampada svg{width:16px;height:16px;color:var(--ink);
+  fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+
+/* legenda e ação andam juntas, coladas à esquerda: o botão tem que ficar ao lado
+   da frase que ele resolve, não jogado na outra ponta de 1500px. A medida é
+   teto para recado comprido — as frases de hoje cabem em uma linha. */
+.estado .corpo{display:flex;align-items:center;gap:13px;flex-wrap:wrap;padding:9px 14px;}
+.estado .txt{font-size:13.5px;line-height:1.4;min-width:0;max-width:92ch;}
+.estado .btn{flex:none;}
+
+.estado.carregando{border-color:var(--accent-line);}
+.estado.carregando .lampada{background:var(--accent-soft);border-right-color:var(--accent-line);}
+.estado.erro{border-color:var(--fora);}
+.estado.erro .lampada{background:var(--fora-track);border-right-color:var(--fora);}
+.estado.aviso{border-color:var(--atencao);}
+.estado.aviso .lampada{background:var(--aten-track);border-right-color:var(--atencao);}
+
+/* único movimento do componente: varredura de 2px no pé, só transform.
+   A regra global de reduced-motion é `*{animation:none}` e o `*` NÃO alcança
+   pseudo-elemento — então a parada é desligada aqui, na mão. Parada, ela
+   repousa como um traço curto à esquerda: trilho, não progresso mentiroso. */
+.estado.carregando::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:26%;
+  background:var(--accent);opacity:.55;animation:estado-varre 1.5s cubic-bezier(.65,0,.35,1) infinite;}
+@keyframes estado-varre{from{transform:translateX(-105%);} to{transform:translateX(485%);}}
+@media (prefers-reduced-motion:reduce){
+  .estado.carregando::after{animation:none;transform:none;opacity:.4;}
+}
+
+@media (max-width:640px){
+  .estado .lampada{width:32px;}
+  .estado .lampada svg{width:15px;height:15px;}
+  .estado .corpo{padding:9px 11px;gap:10px;}
+  .estado .txt{font-size:13px;}
+}
+
+/* no PDF a faixa de idade do dado PRECISA sair, senão o papel mente sobre a
+   data do que está impresso. O que não sai: o carregamento (papel impresso no
+   meio da primeira busca não tem dado nenhum) e o botão, que não se aperta.
+   Os fundos já achatam sozinhos — os tokens de track viram #fff na impressão —
+   então sobra o fio de estado e o glifo, que é o que o papel precisa. */
+@media print{
+  .estado.carregando{display:none !important;}
+  .estado .btn{display:none !important;}
+}
+.leg .n{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;font-weight:700;text-align:right;}
+.leg .p{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink-3);text-align:right;}
+
+/* ============================ tendência ============================ */
+.chart{width:100%;height:auto;display:block;touch-action:none;}
+.chart text{font-family:var(--sans);fill:var(--ink-3);font-size:11.5px;}
+.chart text.tick{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.chart .g{stroke:var(--grid);stroke-width:1;}
+.chart .eixo{stroke:var(--axis);stroke-width:1;}
+.chart .area{fill:var(--s1);opacity:.1;}
+.chart .linha{fill:none;stroke:var(--s1);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;}
+.chart .cruz{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:none;opacity:0;}
+.chart .pt{fill:var(--s1);stroke:var(--surface);stroke-width:2;opacity:0;}
+.chart .rot{fill:var(--ink);font-weight:700;font-size:12px;font-family:var(--mono);}
+.chart.ativo .cruz,.chart.ativo .pt{opacity:1;}
+.tabela-dados{margin-top:12px;}
+.tabela-dados summary{font-size:12.5px;color:var(--ink-2);cursor:pointer;width:fit-content;font-weight:550;}
+.tabela-dados table{margin-top:9px;font-size:12px;}
+
+/* ============================ tooltip ============================ */
+.tip{position:fixed;z-index:80;pointer-events:none;display:none;max-width:280px;
+  background:var(--bezel);color:#fff;border-radius:var(--r);padding:8px 11px;font-size:12.5px;
+  box-shadow:0 8px 22px rgba(11,14,19,.34);}
+.tip .tv{font-size:16px;font-weight:650;font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+/* variante para quando o título é um nome, não um número */
+.tip.nome .tv{font-family:var(--sans);font-size:14.5px;letter-spacing:-.01em;}
+.tip .tk{color:var(--bezel-ink-2);font-size:12px;}
+.tip .tl{display:flex;align-items:center;gap:7px;margin-top:3px;}
+.tip .tl i{width:12px;height:2px;border-radius:1px;flex:none;}
+
+/* ============================ tabelas ============================ */
+.tab-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-weight:600;font-size:11.5px;color:var(--ink-3);padding:9px 12px;
+  border-bottom:1px solid var(--hair-2);background:var(--surface-2);white-space:nowrap;}
+th.num,td.num{text-align:right;}
+td{padding:9px 12px;border-bottom:1px solid var(--hair);vertical-align:middle;}
+tr.det td{padding:0;border-bottom:1px solid var(--hair);}
+tbody tr:last-child td{border-bottom:none;}
+.linha-inc{cursor:pointer;}
+.linha-inc:hover td{background:var(--surface-2);}
+.abre{width:16px;height:16px;display:grid;place-items:center;color:var(--ink-3);}
+.abre svg{width:9px;height:9px;stroke:currentColor;stroke-width:2.2;fill:none;transition:transform .14s;}
+tr.aberta .abre svg{transform:rotate(90deg);}
+tr.aberta td{background:var(--surface-2);}
+td.c-id{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-2);white-space:nowrap;}
+td.c-ev{font-weight:600;}
+td.c-loc{color:var(--ink-2);}
+/* a porta pertence ao local, então mora embaixo dele na linha */
+td.c-loc .pt{display:block;margin-top:2px;font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:11.5px;color:var(--ink-3);white-space:nowrap;}
+td.c-t{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;white-space:nowrap;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:2px 9px 2px 7px;border-radius:999px;white-space:nowrap;}
+.pill.aberto{background:var(--fora-track);color:var(--ink);}
+.pill.fechado{background:var(--ok-track);color:var(--ink);}
+.pill .ic{width:9px;height:9px;}
+.pill.aberto .ic{color:var(--fora);} .pill.fechado .ic{color:var(--ok);}
+.portas{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink-2);white-space:nowrap;}
+
+/* detalhe expandido */
+.det-box{background:var(--well);padding:14px 16px 16px;border-top:1px solid var(--hair);}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));
+  background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);overflow:hidden;}
+.dl div{padding:8px 11px;min-width:0;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);}
+.dl dt{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+.dl dd{margin:2px 0 0;font-size:13px;font-weight:550;overflow-wrap:anywhere;}
+.dl dd.m{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.det-obs{margin-top:10px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:9px 12px;}
+.det-obs dt{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+.det-obs dd{margin:3px 0 0;font-size:13.5px;}
+.det-un{margin-top:10px;background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);}
+.det-un .rolagem{overflow-x:auto;}
+.det-un .cap{font-size:11.5px;font-weight:600;color:var(--ink-3);padding:8px 12px;border-bottom:1px solid var(--hair);}
+.det-un table{font-size:12.5px;}
+.det-un th{background:var(--surface-2);}
+
+/* paginação */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:11px 15px;border-top:1px solid var(--hair);}
+.pager .info{font-size:12.5px;color:var(--ink-3);}
+.pager .info b{color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.pager .ctrl{display:flex;gap:7px;align-items:center;}
+
+/* ============================ eventos agora ============================ */
+.auto{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);}
+.auto .cd{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2);font-weight:600;}
+.cards{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
+.card{display:grid;grid-template-columns:4px minmax(0,1fr) minmax(172px,208px);grid-template-rows:auto auto;
+  background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);overflow:hidden;}
+.card.fora{border-color:var(--fora-track);}
+.card .spine{background:var(--fora);grid-row:1 / -1;}
+.card.atencao .spine{background:var(--atencao);}
+.card-l{padding:13px 16px 14px;min-width:0;}
+.card-r{padding:13px 16px 14px;border-left:1px solid var(--hair);background:var(--surface-2);min-width:0;}
+.k-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.k-loc{font-size:19px;font-weight:650;letter-spacing:-.018em;line-height:1.15;overflow-wrap:anywhere;}
+.k-ev{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;padding:3px 9px;
+  border-radius:999px;background:var(--well);color:var(--ink);}
+.k-ev i{width:8px;height:8px;border-radius:2px;flex:none;}
+.k-mais{font-size:12.5px;color:var(--ink-2);margin-top:5px;}
+.slots{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.slotc{display:inline-flex;align-items:stretch;border:1px solid var(--hair-2);border-radius:3px;overflow:hidden;font-size:12px;}
+.slotc b{padding:3px 7px;font-weight:650;background:var(--surface-2);white-space:nowrap;}
+.slotc > span{padding:3px 7px;border-left:1px solid var(--hair-2);font-family:var(--mono);
+  font-variant-numeric:tabular-nums;color:var(--ink-2);}
+/* a cor do número é o estado da porta; a legenda no k-mais usa as mesmas
+   tintas, então ela própria é a chave de leitura */
+/* peso além da cor: vermelho e verde têm quase a mesma luminosidade e é
+   justo esse par que o daltonismo vermelho-verde não separa */
+.pn{font-weight:500;}
+.pn.fora{color:var(--pon-fora);font-weight:700;}
+.pn.ok{color:var(--pon-ok);font-weight:500;}
+.pon-leg{margin-left:9px;color:var(--ink-3);}
+.pon-leg::before{content:"·";margin-right:9px;}
+.pon-leg .pn{font-family:var(--mono);font-size:12px;}
+.prog{margin-top:11px;}
+.prog .rot{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-2);margin-bottom:5px;}
+.prog .rot b{color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.prog .rail{height:8px;background:var(--well);border-radius:2px;overflow:hidden;}
+.prog .rail i{display:block;height:100%;background:var(--ok);border-radius:0 4px 4px 0;}
+.obs{margin-top:11px;font-size:13.5px;color:var(--ink);border-left:2px solid var(--hair-2);padding-left:10px;}
+.obs:empty{display:none;}
+.k-el{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:34px;font-weight:650;letter-spacing:-.035em;line-height:1;}
+.card.fora .k-el{color:var(--fora);}
+.k-elk{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+.meta{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.meta div{font-size:12px;color:var(--ink-3);}
+.meta div b{display:block;color:var(--ink-2);font-weight:600;font-size:12.5px;overflow-wrap:anywhere;}
+.meta div b.m{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.rodape{grid-column:2 / -1;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;
+  border-top:1px solid var(--hair);padding:8px 16px 9px;background:var(--surface-2);}
+.rodape span{font-size:12px;color:var(--ink-3);}
+.rodape span b{color:var(--ink-2);font-weight:600;}
+.rodape span b.m{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+
+/* ============================ modo apresentação ============================ */
+#apres{position:fixed;inset:0;z-index:100;background:var(--plane);color:var(--ink);
+  display:none;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden;}
+body.apres{overflow:hidden;}
+body.apres #apres{display:grid;}
+.ap-top{display:flex;align-items:center;gap:20px;padding:1.4vh 2.2vw;background:var(--bezel);color:var(--bezel-ink);}
+.ap-top h2{font-size:clamp(15px,1.7vh,26px);font-weight:600;margin-right:auto;letter-spacing:-.01em;}
+.ap-top .q{font-size:clamp(12px,1.3vh,19px);color:var(--bezel-ink-2);}
+.ap-top .rel{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(14px,1.8vh,28px);font-weight:600;}
+.ap-dots{display:flex;gap:6px;}
+.ap-dots i{width:8px;height:8px;border-radius:50%;background:var(--bezel-hair);display:block;}
+.ap-dots i.on{background:var(--accent);}
+.ap-mid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:1.1vw;padding:1.2vh 2.2vw;min-height:0;}
+.ap-col{display:flex;flex-direction:column;min-height:0;min-width:0;}
+.ap-ver{background:var(--surface);border:1px solid var(--hair-2);border-top:5px solid var(--fora);
+  border-radius:var(--r);padding:1.7vh 1.6vw;display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden;}
+.ap-ver.calmo{border-top-color:var(--ok);} .ap-ver.tenso{border-top-color:var(--atencao);}
+.ap-n{font-size:clamp(54px,13.5vh,168px);font-weight:650;letter-spacing:-.045em;line-height:.86;color:var(--fora);}
+.ap-ver.calmo .ap-n{color:var(--ok);} .ap-ver.tenso .ap-n{color:var(--atencao);}
+.ap-t{font-size:clamp(18px,3.1vh,44px);font-weight:600;letter-spacing:-.018em;line-height:1.1;margin-top:.5vh;}
+.ap-s{font-size:clamp(12px,1.6vh,22px);color:var(--ink-2);margin-top:.7vh;}
+.ap-blocos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7vw;margin-top:1.4vh;}
+.ap-blocos:empty{display:none;}
+/* excedente: os mesmos locais, em cartão reduzido, nunca resumidos em "+N" */
+.ap-mini{display:flex;gap:.5vw;flex-wrap:wrap;align-content:flex-start;margin-top:.8vh;
+  min-height:0;overflow:hidden;}
+.ap-mini:empty{display:none;}
+/* rede em pandemônio: cabe mais gente na mesma faixa */
+.ap-mini.denso{gap:.35vw;}
+.ap-mini.denso .ap-mn{padding:.32vh .5vw;gap:.4vw;}
+.ap-mini.denso .ap-mn .n{font-size:clamp(9px,1.15vh,15px);}
+.ap-mini.denso .ap-mn .t{font-size:clamp(9px,1.2vh,16px);}
+.ap-mn{display:inline-flex;align-items:baseline;gap:.55vw;min-width:0;border-radius:var(--r);
+  padding:.5vh .7vw;background:var(--fora-track);border:1px solid var(--fora);}
+.ap-mini.aten .ap-mn{background:var(--aten-track);border-color:var(--atencao);}
+.ap-mn .n{font-size:clamp(10px,1.4vh,19px);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ap-mn .t{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:clamp(10px,1.45vh,20px);font-weight:650;color:var(--ink-2);}
+.ap-bl{background:var(--fora-track);border:1px solid var(--fora);border-radius:var(--r);padding:.9vh .8vw;min-width:0;}
+.ap-bl .nm{font-size:clamp(12px,1.55vh,21px);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ap-bl .t{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(17px,2.9vh,40px);
+  font-weight:650;letter-spacing:-.03em;line-height:1.05;}
+.ap-bl .u{font-size:clamp(10px,1.2vh,15px);color:var(--ink-2);}
+.ap-aten{display:flex;gap:.55vw;flex-wrap:wrap;margin-top:1.1vh;}
+.ap-at{display:inline-flex;align-items:baseline;gap:.6vw;background:var(--aten-track);
+  border:1px solid var(--atencao);border-radius:var(--r);padding:.6vh .7vw;}
+.ap-at .n{font-size:clamp(11px,1.45vh,19px);font-weight:650;}
+.ap-at .t{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(11px,1.5vh,20px);color:var(--ink-2);}
+.ap-regua{margin-top:auto;padding-top:1.6vh;}
+.ap-regua .rot{display:flex;justify-content:space-between;font-size:clamp(10px,1.25vh,16px);color:var(--ink-3);margin-bottom:.6vh;}
+.ap-regua .regua{height:18vh;}
+.ap-regua .regua i{height:16%;} .ap-regua .regua i.atencao{height:52%;} .ap-regua .regua i.fora{height:100%;}
+.ap-sec{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r);padding:1.5vh 1.4vw;
+  display:flex;flex-direction:column;min-height:0;flex:1 1 auto;overflow:hidden;}
+.ap-sec > .ap-lista{flex:1 1 auto;justify-content:space-evenly;}
+/* janela de recorte da lista em aberto: quem rola é a lista, não a caixa */
+.ap-vp{flex:1 1 auto;min-height:0;overflow:hidden;position:relative;}
+.ap-vp > .ap-lista{margin-top:0;}
+.ap-lista.cabe{height:100%;justify-content:space-evenly;}
+.ap-lista.rola{will-change:transform;}
+.ap-sec h3{font-size:clamp(13px,1.7vh,24px);font-weight:600;color:var(--ink-2);letter-spacing:-.008em;}
+.ap-lista{display:flex;flex-direction:column;margin-top:1vh;min-height:0;}
+.ap-li{display:grid;grid-template-columns:1.2fr auto;gap:.8vw;align-items:center;padding:.85vh 0;border-bottom:1px solid var(--hair);}
+.ap-li:last-child{border-bottom:none;}
+.ap-li .a{min-width:0;}
+.ap-li .a .n{font-size:clamp(13px,1.8vh,25px);font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ap-li .a .k{font-size:clamp(10px,1.25vh,16px);color:var(--ink-3);display:flex;align-items:center;gap:6px;}
+/* slot/pon por extenso: numa tela de parede não há como expandir nada */
+.ap-li .a .pp{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:clamp(10px,1.35vh,18px);color:var(--ink-2);margin-top:.3vh;line-height:1.35;}
+.ap-li .a .pp .g{display:block;}
+.ap-cab{display:flex;align-items:baseline;gap:.9vw;flex-wrap:wrap;}
+.ap-leg{margin-left:0;color:var(--ink-3);font-size:clamp(10px,1.25vh,16px);}
+.ap-leg::before{content:none;}
+.ap-leg .pn{font-family:var(--mono);font-size:clamp(10px,1.25vh,16px);}
+.ap-li .b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(15px,2.3vh,32px);
+  font-weight:650;letter-spacing:-.025em;text-align:right;}
+.ap-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:.9vw;margin-top:1vh;}
+.ap-tri div{min-width:0;}
+.ap-tri .k{font-size:clamp(10px,1.25vh,16px);color:var(--ink-3);font-weight:550;}
+.ap-tri .v{font-size:clamp(20px,3.4vh,46px);font-weight:650;letter-spacing:-.03em;line-height:1.05;}
+.ap-cols{display:flex;align-items:flex-end;gap:2px;height:11vh;margin-top:1.3vh;border-bottom:1px solid var(--axis);}
+.ap-cols i{flex:1 1 0;background:var(--s1);border-radius:2px 2px 0 0;display:block;min-height:2px;}
+.ap-cols i.z{background:var(--neutro-2);}
+.ap-colr{display:flex;justify-content:space-between;font-size:clamp(10px,1.2vh,15px);color:var(--ink-3);margin-top:.5vh;}
+.ap-bot{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hair);
+  border-top:1px solid var(--hair);}
+.ap-bot div{background:var(--surface);padding:1.2vh 2.2vw;min-width:0;}
+.ap-bot div:last-child{padding-right:max(2.2vw,124px);}
+.ap-bot .v{white-space:nowrap;}
+.ap-bot .k{font-size:clamp(10px,1.3vh,17px);color:var(--ink-3);font-weight:550;}
+.ap-bot .v{font-size:clamp(20px,3.2vh,44px);font-weight:650;letter-spacing:-.03em;line-height:1.05;}
+.ap-sair{position:fixed;right:14px;bottom:14px;z-index:101;opacity:0;pointer-events:none;}
+body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
+
+/* ============================ impressão ============================ */
+@media print{
+  :root{--plane:#fff;--surface:#fff;--surface-2:#fff;--well:#fff;--ink:#000;--ink-2:#222;--ink-3:#444;
+    --hair:#bbb;--hair-2:#888;--bezel:#fff;--bezel-ink:#000;--bezel-ink-2:#333;--bezel-hair:#bbb;
+    --fora-track:#fff;--ok-track:#fff;--aten-track:#fff;--accent-soft:#fff;--accent-line:#999;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{background:#fff;font-size:10.5pt;}
+  .bezel{position:static;border-bottom:1px solid #000;}
+  .abas,.bz-acts,.filtro,.presets,.pager .ctrl,.detalhes,.tabela-dados,#apres,.ap-sair,.chip-f button{display:none !important;}
+  .ativos{display:none !important;}
+  main{padding:0;max-width:none;}
+  .impr{display:block !important;}
+  .painel,.quadro,.kpis,.card{break-inside:avoid;border-color:#999;}
+  tr,.rk-row{break-inside:avoid;}
+  .painel{margin-top:10px;}
+  .card-r{background:#fff;}
+  .banda button{color:#000;}
+}
+.impr{display:none;padding:8px 0 4px;border-bottom:1px solid #000;margin-bottom:8px;font-size:10pt;}
+.impr b{font-size:12pt;}
+
+/* ============================ responsivo ============================ */
+@media (max-width:1180px){
+  .rk-h,.rk-row{grid-template-columns:20px minmax(80px,1.4fr) minmax(40px,1fr) 40px minmax(40px,1fr) 58px;}
+  .rk-h .num.med,.rk-v.med{display:none;}
+}
+@media (max-width:1000px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .q-top{grid-template-columns:minmax(0,1fr);gap:15px;}
+  .veredito{border-right:none;border-bottom:1px solid var(--hair);padding-right:0;padding-bottom:13px;}
+  .duo{grid-template-columns:minmax(0,1fr) !important;}
+  .card{grid-template-columns:4px minmax(0,1fr);}
+  .card-r{border-left:none;border-top:1px solid var(--hair);grid-column:2;}
+  .rodape{grid-column:2;}
+  .ap-mid{grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:640px){
+  main{padding:14px 12px 48px;}
+  .bz-row{padding:10px 12px;gap:12px;}
+  .abas{padding:0 12px;gap:18px;}
+  .kpis{grid-template-columns:minmax(0,1fr);}
+  .rk-h,.rk-row{grid-template-columns:16px minmax(56px,1.25fr) minmax(20px,1fr) 30px 54px;gap:7px;}
+  .rk-row .trilho.t2{display:none;}
+  .rk-h{font-size:10.5px;}
+  .rk-h .tempo-h{grid-column:5 / 6 !important;}
+  .rk-h .tempo-h .sw{display:none;}
+  .rk-nm{font-size:12.5px;}
+  .rk-v{font-size:11.5px;}
+  .t-inc td,.t-inc th{padding:7px 6px;}
+  .t-inc td.c-loc{font-size:12px;}
+  .t-inc .pill{font-size:10.5px;padding:2px 6px 2px 5px;gap:4px;}
+  .t-inc td.c-ev{font-size:12px;}
+  .k-el{font-size:27px;}
+  .v-num{font-size:44px;}
+  .t-inc th:nth-child(2),.t-inc td:nth-child(2),
+  .t-inc th:nth-child(5),.t-inc td:nth-child(5),
+  .t-inc th:nth-child(6),.t-inc td:nth-child(6),
+  .t-inc th:nth-child(7),.t-inc td:nth-child(7){display:none;}
+  .t-inc th{white-space:normal;}
+  .t-inc th,.t-inc td{padding:8px 8px;}
+  .det-box{padding:11px 11px 12px;}
+  .mark h1{font-size:15px;white-space:normal;}
+  .mark .who{display:none;}
+  .stamp{font-size:11.5px;}
+  .painel-h,.painel-c,.pager{padding-left:12px;padding-right:12px;}
+  .q-top,.regua-wrap{padding-left:13px;padding-right:13px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important;}
+}
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <header class="top">
-    <h1><span class="accent-dot"></span>Painel Ocorrências PA</h1>
-    <p>Análise de rede · Ocorrências PA</p>
-  </header>
-
-  <div id="configBanner" class="banner error" style="display:none;">
-    <h3>Configuração necessária</h3>
-    <p>Abra este arquivo em um editor de texto e preencha <code>WEBAPP_URL</code> e
-    <code>ACCESS_TOKEN</code> no topo do bloco <code>&lt;script&gt;</code> (mesmos valores do
-    registrador).</p>
+<header class="bezel">
+  <div class="bz-row">
+    <div class="mark">
+      <svg viewBox="0 0 20 16" aria-hidden="true"><rect x="0" y="11" width="3" height="5" rx=".7"/><rect x="5.6" y="7.5" width="3" height="8.5" rx=".7"/><rect x="11.2" y="4" width="3" height="12" rx=".7"/><rect x="16.8" y="0" width="3" height="16" rx=".7"/></svg>
+      <div>
+        <h1>Painel de ocorrências na rede</h1>
+        <div class="who">NOC — leitura e análise. O registro é feito no registrador.</div>
+      </div>
+    </div>
+    <div class="stamp">dados de<b id="stamp">—</b></div>
+    <div class="bz-acts">
+      <button class="btn btn-b" id="btnAtualizar" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 3.5V10h-6.5"/></svg>Atualizar</button>
+      <button class="btn btn-b" id="btnPdf" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0-4-4m4 4 4-4M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>Exportar PDF</button>
+      <button class="btn btn-b" id="btnTema" type="button" aria-live="polite">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6"/></svg><span id="temaTxt">Plano escuro</span></button>
+      <button class="btn btn-pri" id="btnApres" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4" width="19" height="13" rx="1.4"/><path d="M9 21h6M12 17v4"/></svg>Modo apresentação</button>
+    </div>
   </div>
-
-  <nav class="tabs">
-    <button data-tab="geral" class="active">Visão geral</button>
-    <button data-tab="agora">Eventos agora</button>
-    <button data-tab="historico">Histórico geral</button>
+  <nav class="abas" role="tablist" aria-label="Seções do painel">
+    <button role="tab" aria-selected="true" aria-controls="v-geral" id="t-geral" data-v="geral">Visão geral</button>
+    <button role="tab" aria-selected="false" aria-controls="v-agora" id="t-agora" data-v="agora">Eventos agora<span class="cnt" id="cntAgora">0</span></button>
+    <button role="tab" aria-selected="false" aria-controls="v-hist" id="t-hist" data-v="hist">Histórico geral</button>
   </nav>
+</header>
+
+<main id="main">
+  <div class="impr" id="imprCab"></div>
+  <div class="estado" id="estado" role="status" aria-live="polite" hidden></div>
 
   <!-- ===================== VISÃO GERAL ===================== -->
-  <section class="panel active" id="panel-geral">
-    <div class="filters">
-      <div class="field">
-        <label for="gEvento">Evento</label>
-        <select id="gEvento"></select>
+  <section class="vista on" id="v-geral" role="tabpanel" aria-labelledby="t-geral" tabindex="-1">
+    <div class="filtro">
+      <div class="campo"><label>Período</label>
+        <div class="presets" id="gPre" role="group" aria-label="Períodos rápidos da visão geral">
+          <button type="button" data-d="7">7 dias</button><button type="button" data-d="30">30 dias</button><button type="button" data-d="90">90 dias</button><button type="button" data-d="0">Tudo</button>
+        </div></div>
+      <div class="campo"><label for="gDe">De</label><input type="date" id="gDe"></div>
+      <div class="campo"><label for="gAte">Até</label><input type="date" id="gAte"></div>
+      <div class="campo cresce"><label for="gEv">Evento</label><select id="gEv" class="f-ev"></select></div>
+      <div class="campo cresce"><label for="gLoc">Local</label><select id="gLoc" class="f-loc"></select></div>
+      <button class="btn btn-pri" id="btnFiltroG" type="button">Filtrar</button>
+    </div>
+    <div class="ativos" id="gAtivos"></div>
+
+    <!-- quadro de status -->
+    <h2 class="sr">Quadro de status por local</h2>
+    <div class="quadro" id="quadro" style="margin-top:14px">
+      <div class="q-top">
+        <div class="veredito">
+          <div class="v-num" id="qNum">—</div>
+          <div class="v-txt" id="qTxt">—</div>
+          <div class="v-sub" id="qSub">—</div>
+          <div class="censo" id="qCenso"></div>
+        </div>
+        <div>
+          <div class="fora-grid" id="qFora"></div>
+          <div class="aten-row" id="qAten"></div>
+        </div>
       </div>
-      <div class="field">
-        <label for="gOlt">OLT</label>
-        <select id="gOlt"></select>
-      </div>
-      <div class="field">
-        <label for="gStart">De</label>
-        <input type="date" id="gStart">
-      </div>
-      <div class="field">
-        <label for="gEnd">Até</label>
-        <input type="date" id="gEnd">
-      </div>
-      <div class="field" style="display:flex;align-items:flex-end;">
-        <button type="button" class="primary" id="btnFiltrarGeral" style="width:100%;">Filtrar</button>
+      <div class="regua-wrap">
+        <div class="regua-rot"><span>Censo dos locais cadastrados, em ordem alfabética</span><span id="qReguaN"></span></div>
+        <div class="regua" id="qRegua" role="img"></div>
+        <details class="detalhes" id="qDet">
+          <summary id="qDetS">Locais sem incidentes abertos</summary>
+          <div class="lista-ok" id="qOk"></div>
+        </details>
       </div>
     </div>
 
-    <div class="summary">
-      <div class="metric">
-        <div class="label" style="color:var(--danger);">Abertos</div>
-        <div class="value" style="color:var(--danger);" id="mAbertos">—</div>
-      </div>
-      <div class="metric">
-        <div class="label" style="color:var(--success);">Fechados</div>
-        <div class="value" style="color:var(--success);" id="mFechados">—</div>
-      </div>
-      <div class="metric">
-        <div class="label" style="color:var(--text-dim);">Total</div>
-        <div class="value" id="mTotal">—</div>
-      </div>
+    <!-- indicadores -->
+    <div class="kpis">
+      <div class="kpi"><div class="k">Incidentes no período</div><div class="v" id="kTotal">—</div><div class="d" id="kTotalD"></div></div>
+      <div class="kpi alerta"><div class="k">Em aberto agora</div><div class="v" id="kAbertos">—</div><div class="d" id="kAbertosD"></div></div>
+      <div class="kpi"><div class="k">MTTR por incidente</div><div class="v" id="kMttr">—</div><div class="d" id="kMttrD"></div></div>
+      <div class="kpi"><div class="k">Tempo total parado</div><div class="v" id="kParado">—</div><div class="d">soma dos incidentes fechados</div></div>
     </div>
 
-    <div class="section-title">Ocorrências por OLT</div>
-    <div id="chartOlt"></div>
+    <!-- ranking fundido + banda por tipo -->
+    <div class="duo" style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;">
+      <section class="painel" id="pLocais">
+        <div class="painel-h">
+          <h3>Locais que mais doem</h3>
+          <p class="painel-sub" id="locSub"></p>
+        </div>
+        <div class="painel-c">
+          <div class="rk" id="rk">
+            <div class="rk-h">
+              <span></span><span>Local</span>
+              <span class="u" style="grid-column:3/5"><i class="sw" style="background:var(--s1)"></i>Unidades</span>
+              <span class="u tempo-h" style="grid-column:5/7"><i class="sw" style="background:var(--s2)"></i>Tempo parado</span>
+              <span class="num med">Média</span>
+            </div>
+            <div id="rkBody"></div>
+          </div>
+        </div>
+      </section>
 
-    <div class="section-title">Por tipo de evento</div>
-    <div id="chartEvento"></div>
+      <section class="painel" id="pTipo">
+        <div class="painel-h">
+          <h3>Por tipo de evento</h3>
+          <p class="painel-sub" id="tipoSub"></p>
+        </div>
+        <div class="painel-c">
+          <div class="banda" id="banda" role="group" aria-label="Composição dos incidentes por tipo de evento"></div>
+          <div class="banda-esc"><span>0%</span><span>100% dos incidentes do período</span></div>
+          <div class="leg" id="legTipo"></div>
+        </div>
+      </section>
+    </div>
 
-    <div class="section-title">Tendência (por mês)</div>
-    <div id="chartTrend"></div>
+    <!-- tendência -->
+    <section class="painel" id="pTend">
+      <div class="painel-h"><h3>Ocorrências por dia</h3><p class="painel-sub" id="tendSub"></p></div>
+      <div class="painel-c">
+        <svg class="chart" id="chTend" role="img" tabindex="0" aria-label="Incidentes abertos por dia no período filtrado"></svg>
+        <details class="tabela-dados">
+          <summary>Ver os números dia a dia</summary>
+          <div class="tab-wrap"><table id="tendTab"></table></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- tabela -->
+    <section class="painel">
+      <div class="painel-h"><h3>Incidentes no período</h3><p class="painel-sub" id="gTabSub"></p></div>
+      <div class="tab-wrap">
+        <table class="t-inc">
+          <thead><tr><th style="width:30px"><span class="sr">Abrir detalhe</span></th><th>ID</th><th>Evento</th><th>Local(is)</th><th>Início</th><th>Duração</th><th>Portas</th><th>Situação</th></tr></thead>
+          <tbody id="gTab"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span class="info" id="gPg"></span>
+        <div class="ctrl"><button class="btn btn-sm" id="gPrev" type="button">Anterior</button><button class="btn btn-sm" id="gNext" type="button">Próxima</button></div>
+      </div>
+    </section>
   </section>
 
   <!-- ===================== EVENTOS AGORA ===================== -->
-  <section class="panel" id="panel-agora">
-    <div class="filters">
-      <div class="field">
-        <label for="aEvento">Evento</label>
-        <select id="aEvento"></select>
-      </div>
-      <div class="field">
-        <label for="aOlt">OLT</label>
-        <select id="aOlt"></select>
-      </div>
-      <div class="field">
-        <label for="aStart">De</label>
-        <input type="date" id="aStart">
-      </div>
-      <div class="field">
-        <label for="aEnd">Até</label>
-        <input type="date" id="aEnd">
-      </div>
+  <section class="vista" id="v-agora" role="tabpanel" aria-labelledby="t-agora" tabindex="-1">
+    <div class="filtro">
+      <div class="campo"><label for="aDe">De</label><input type="date" id="aDe"></div>
+      <div class="campo"><label for="aAte">Até</label><input type="date" id="aAte"></div>
+      <div class="campo cresce"><label for="aEv">Evento</label><select id="aEv" class="f-ev"></select></div>
+      <div class="campo cresce"><label for="aLoc">Local</label><select id="aLoc" class="f-loc"></select></div>
+      <button class="btn btn-pri" id="btnFiltroA" type="button">Filtrar</button>
+      <div class="fsep"></div>
+      <div class="auto">Atualiza sozinho em <span class="cd" id="aCd">45s</span></div>
     </div>
-    <button type="button" class="primary" id="btnFiltrarAgora" style="margin-bottom:18px;">Filtrar</button>
-    <div id="listaAgora"></div>
+    <div class="ativos" id="aAtivos"></div>
+    <p class="painel-sub" id="aSub" style="margin-top:14px"></p>
+    <div class="cards" id="aCards"></div>
   </section>
 
   <!-- ===================== HISTÓRICO GERAL ===================== -->
-  <section class="panel" id="panel-historico">
-    <div class="filters">
-      <div class="field">
-        <label for="hEvento">Evento</label>
-        <select id="hEvento"></select>
+  <section class="vista" id="v-hist" role="tabpanel" aria-labelledby="t-hist" tabindex="-1">
+    <div class="filtro">
+      <div class="campo"><label>Período</label>
+        <div class="presets" id="hPre" role="group" aria-label="Períodos rápidos do histórico">
+          <button type="button" data-d="7">7 dias</button><button type="button" data-d="30">30 dias</button><button type="button" data-d="90">90 dias</button><button type="button" data-d="0">Tudo</button>
+        </div></div>
+      <div class="campo"><label for="hDe">De</label><input type="date" id="hDe"></div>
+      <div class="campo"><label for="hAte">Até</label><input type="date" id="hAte"></div>
+      <div class="campo cresce"><label for="hEv">Evento</label><select id="hEv" class="f-ev"></select></div>
+      <div class="campo cresce"><label for="hLoc">Local</label><select id="hLoc" class="f-loc"></select></div>
+      <div class="campo"><label for="hSlot">Slot</label><select id="hSlot"></select></div>
+      <div class="campo"><label for="hPon">PON</label><select id="hPon"></select></div>
+      <button class="btn btn-pri" id="btnFiltroH" type="button">Filtrar</button>
+    </div>
+    <div class="ativos" id="hAtivos"></div>
+    <section class="painel">
+      <div class="painel-h"><h3>Todos os incidentes</h3><p class="painel-sub" id="hTabSub"></p></div>
+      <div class="tab-wrap">
+        <table class="t-inc">
+          <thead><tr><th style="width:30px"><span class="sr">Abrir detalhe</span></th><th>ID</th><th>Evento</th><th>Local(is)</th><th>Início</th><th>Duração</th><th>Portas</th><th>Situação</th></tr></thead>
+          <tbody id="hTab"></tbody>
+        </table>
       </div>
-      <div class="field">
-        <label for="hOlt">OLT</label>
-        <select id="hOlt"></select>
+      <div class="pager">
+        <span class="info" id="hPg"></span>
+        <div class="ctrl"><button class="btn btn-sm" id="hPrev" type="button">Anterior</button><button class="btn btn-sm" id="hNext" type="button">Próxima</button></div>
       </div>
-      <div class="field">
-        <label for="hSlot">Slot</label>
-        <select id="hSlot"></select>
-      </div>
-      <div class="field">
-        <label for="hPon">PON</label>
-        <select id="hPon"></select>
-      </div>
-      <div class="field">
-        <label for="hStart">De</label>
-        <input type="date" id="hStart">
-      </div>
-      <div class="field">
-        <label for="hEnd">Até</label>
-        <input type="date" id="hEnd">
+    </section>
+  </section>
+</main>
+
+<!-- ===================== MODO APRESENTAÇÃO ===================== -->
+<div id="apres" aria-hidden="true">
+  <div class="ap-top">
+    <h2>Ocorrências na rede</h2>
+    <span class="q" id="apFiltro"></span>
+    <div class="ap-dots" id="apDots" aria-hidden="true"><i class="on"></i><i></i></div>
+    <span class="rel" id="apRel"></span>
+  </div>
+  <div class="ap-mid">
+    <div class="ap-col">
+      <div class="ap-ver" id="apVer">
+        <div class="ap-n" id="apN">—</div>
+        <div class="ap-t" id="apT">—</div>
+        <div class="ap-s" id="apS">—</div>
+        <div class="ap-blocos" id="apBl"></div>
+        <div class="ap-mini" id="apMini"></div>
+        <div class="ap-aten" id="apAt"></div>
+        <div class="ap-regua">
+          <div class="rot"><span id="apReguaK">—</span><span id="apReguaN">—</span></div>
+          <div class="regua" id="apRegua"></div>
+        </div>
       </div>
     </div>
-    <button type="button" class="primary" id="btnFiltrarHistorico" style="margin-bottom:14px;">Filtrar</button>
-    <div class="hint" id="hintHistorico"></div>
-    <div id="tabelaHistorico"></div>
-  </section>
+    <div class="ap-col">
+      <div class="ap-sec" id="apSec"></div>
+    </div>
+  </div>
+  <div class="ap-bot" id="apBot"></div>
 </div>
+<button class="btn ap-sair" id="btnSairApres" type="button">Sair (Esc)</button>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
 
 <script>
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzw5sW_PDPBdjerDAgkfXtaKpUobNbwc1nyxoDhDAU2ngvUD5dZlZ9Zs8qOsx1LCfsT/exec";
-const ACCESS_TOKEN = "1251@amz";
-const isConfigured = !WEBAPP_URL.startsWith("COLE_") && !ACCESS_TOKEN.startsWith("COLE_");
-const HIST_LIMIT = 50;
+"use strict";
+/* ==================================================================
+   Dados — leitura da planilha pelo Apps Script.
 
-let meta = { olts: [], eventos: [], fontes: [] };
-const PALETTE = ["#22d3ee", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#fb923c", "#60a5fa", "#f472b6"];
+   O painel só lê. Duas consultas, com ritmos diferentes:
 
-async function apiGet(action, params) {
-  const qs = new URLSearchParams(Object.assign({ token: ACCESS_TOKEN, action }, params || {}));
-  const res = await fetch(WEBAPP_URL + "?" + qs.toString());
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || "Erro desconhecido");
-  return json.data;
+     ABERTOS   situacao=aberto, SEM filtro de data, de minuto em minuto.
+               Alimenta o quadro de status, o Eventos agora e o modo
+               apresentação. Sem data de propósito: um incidente aberto
+               há cem dias precisa aparecer mesmo com o painel mostrando
+               os últimos sete.
+
+     PERIODO   a janela de datas carregada, de dez em dez minutos.
+               Alimenta tabelas, gráficos, MTTR e tendência.
+
+   A janela carregada é o DOBRO do período escolhido, porque a faixa de
+   indicadores compara com o período anterior de mesmo tamanho. Sem isso
+   a comparação diria "sem período anterior" tendo um.
+
+   Datas trafegam sempre como 'YYYY-MM-DDTHH:mm', no fuso da planilha.
+   Nenhuma serialização em UTC em lugar nenhum: vira Date só na hora de
+   calcular, e volta a string para guardar.
+   ================================================================== */
+
+const CFG = {
+  URL: "https://script.google.com/macros/s/AKfycbxTJTcd4ZYt5SwTKfyTBTm18OL-7DoVpyakSM7Gu10vHXK2eLZktNmGDrtqj6RV5wwAIg/exec",
+  TOKEN: "12511377amz"
+};
+
+let LOCAIS = [];
+let EVENTOS = [];          /* ordem canônica: a da Configuração */
+let FONTES = [];
+let COR_EV = {};
+let PERIODO = [];
+let ABERTOS = [];
+let JANELA = null;         /* {de, ate} do que está carregado */
+let SELO = null;           /* última sincronização bem-sucedida */
+
+/* ---------- gravidade ----------
+   A lista herdada diz quem NÃO é grave. Todo o resto entra como fora do
+   ar, inclusive um tipo de evento criado depois desta versão: assim nada
+   novo passa despercebido no quadro de status. */
+const BRANDOS = new Set(["MANUTENÇÃO","INSTABILIDADE","ATENUAÇÃO",
+  "CTO SEM POTÊNCIA","FALHA ELÉTRICA","FALHA ELETRICA"]);
+const GRAVE = { has: ev => !BRANDOS.has(String(ev || "").trim().toUpperCase()) };
+
+/* ---------- cor por tipo de evento ----------
+   Sete tons validados, atribuídos pela posição na Configuração — que é
+   ordem de inserção, porque o "+" do registrador sempre acrescenta na
+   última linha. A cor segue a entidade: mudar o filtro não repinta
+   ninguém, e criar um tipo novo não mexe na cor dos anteriores.
+
+   Do oitavo em diante a cor NÃO é gerada. Acima de sete tons ninguém
+   mais consegue casar a fatia com a legenda, e tom sorteado esbarra no
+   vermelho e no amarelo, que aqui significam estado. O excedente vira
+   "Outros", em cinza neutro — e a legenda continua nomeando cada tipo,
+   um por um, todos clicáveis. Nada some. */
+const MAX_TONS = 7;
+const OUTROS = "Outros";
+function montarPaleta(nomes){
+  const cores = {};
+  nomes.forEach((nome, i) => {
+    cores[nome] = i < MAX_TONS ? "var(--s" + (i+1) + ")" : "var(--neutro)";
+  });
+  cores[OUTROS] = "var(--neutro)";
+  return cores;
+}
+/* o nome que vai para a faixa: o próprio tipo, ou "Outros" */
+const fatiaDe = ev => {
+  const i = EVENTOS.indexOf(ev);
+  return (i >= 0 && i < MAX_TONS) ? ev : OUTROS;
+};
+const dobradoEmOutros = ev => fatiaDe(ev) === OUTROS;
+
+/* ---------- datas como string, sem UTC ---------- */
+const p2 = n => String(n).padStart(2,"0");
+const sData = dt => dt.getFullYear()+"-"+p2(dt.getMonth()+1)+"-"+p2(dt.getDate());
+const sDataHora = dt => sData(dt)+"T"+p2(dt.getHours())+":"+p2(dt.getMinutes());
+function dData(s){
+  if(!s) return null;
+  const [d,t] = String(s).split("T");
+  const [Y,M,D] = d.split("-").map(Number);
+  const [h,mi] = (t||"00:00").split(":").map(Number);
+  return new Date(Y, M-1, D, h||0, mi||0);
+}
+const agora = () => new Date();
+const minEntre = (a,b) => Math.round((b - a)/60000);
+
+const fmtDH = s => { const d = dData(s); return d ? p2(d.getDate())+"/"+p2(d.getMonth()+1)+" "+p2(d.getHours())+":"+p2(d.getMinutes()) : "—"; };
+const fmtDHA = s => { const d = dData(s); return d ? p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes()) : "—"; };
+const fmtHora = s => { const d = dData(s); return d ? p2(d.getHours())+":"+p2(d.getMinutes()) : "—"; };
+function fmtDur(min){
+  if (min == null) return "—";
+  const m = Math.max(0, Math.round(min));
+  if (m < 60) return m + "min";
+  const h = Math.floor(m/60), r = m%60;
+  if (h < 24) return h + "h" + (r ? p2(r) : "");
+  const d = Math.floor(h/24), hr = h%24;
+  return d + "d " + hr + "h";
+}
+const decorrido = s => fmtDur(Math.max(0, minEntre(dData(s), agora())));
+
+/* ==================================================================
+   Conversa com a planilha
+
+   GET com querystring, igual ao registrador — que já roda assim em
+   produção. O Apps Script não responde a OPTIONS, então nada aqui pode
+   disparar preflight: sem cabeçalho fora do comum, sem POST.
+   ================================================================== */
+class ErroDeRede extends Error {
+  constructor(msg){ super(msg); this.rede = true; }
 }
 
-function escapeHtml(s) {
-  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+async function apiGet(action, params){
+  const u = new URL(CFG.URL);
+  u.searchParams.set("action", action);
+  u.searchParams.set("token", CFG.TOKEN);
+  for (const k in (params || {})){
+    const v = params[k];
+    if (v === undefined || v === null || v === "") continue;
+    u.searchParams.set(k, v);
+  }
+  let r;
+  try { r = await fetch(u.toString(), { method: "GET" }); }
+  catch (e){ throw new ErroDeRede("Não deu para falar com a planilha."); }
+  let texto;
+  try { texto = await r.text(); }
+  catch (e){ throw new ErroDeRede("A resposta da planilha veio pela metade."); }
+  let j;
+  try { j = JSON.parse(texto); }
+  catch (e){
+    /* resposta que não é JSON costuma ser a tela de login do Google:
+       implantação com acesso restrito, ou URL de rascunho */
+    throw new ErroDeRede("A planilha respondeu algo que não é dado. " +
+      "Confira se a implantação está publicada para qualquer pessoa.");
+  }
+  if (!j || j.ok !== true) throw new Error(String((j && j.erro) || "Resposta inesperada da planilha."));
+  return j.dados;
 }
 
-function fmtDate(iso) {
-  if (!iso) return "—";
-  const [d, t] = iso.split("T");
-  const [y, m, day] = d.split("-");
-  return day + "/" + m + "/" + y + (t ? " " + t : "");
+/* ---------- janela de datas ----------
+   Carrega o dobro do período pedido, para a comparação com o período
+   anterior ter de onde sair. `de` vazio significa a base inteira. */
+function janelaPara(f){
+  if (!f.de) return { de: "", ate: "" };
+  const de = dData(f.de + "T00:00");
+  const ate = f.ate ? dData(f.ate + "T23:59") : agora();
+  const dias = Math.max(1, Math.round((ate - de)/86400000));
+  return { de: sData(new Date(de.getTime() - dias*86400000)), ate: "" };
 }
 
-function fillPlainSelect(selectEl, values, allLabel) {
-  selectEl.innerHTML = "";
-  const blank = document.createElement("option");
-  blank.value = ""; blank.textContent = allLabel;
-  selectEl.appendChild(blank);
-  values.forEach(v => {
-    const o = document.createElement("option"); o.value = v; o.textContent = v;
-    selectEl.appendChild(o);
+/* A janela carregada cobre o que o filtro pede? */
+function janelaCobre(alvo){
+  if (!JANELA) return false;
+  if (JANELA.de === "") return true;          /* base inteira cobre tudo */
+  if (alvo.de === "") return false;
+  return alvo.de >= JANELA.de;
+}
+
+async function buscarMeta(){
+  const d = await apiGet("meta");
+  LOCAIS = (d.locais || []).slice();
+  EVENTOS = (d.eventos || []).map(e => (e && e.evento !== undefined) ? e.evento : String(e));
+  FONTES = (d.fontes || []).slice();
+  COR_EV = montarPaleta(EVENTOS);
+  document.querySelectorAll(".f-ev").forEach(s => selOpts(s, EVENTOS, "Todos os eventos"));
+  document.querySelectorAll(".f-loc").forEach(s => selOpts(s, LOCAIS, "Todos os locais"));
+}
+
+async function buscarAbertos(){
+  const d = await apiGet("incidentes", { situacao: "aberto", comUnidades: "sim" });
+  ABERTOS = d.incidentes || [];
+}
+
+async function buscarPeriodo(alvo){
+  const j = alvo || janelaPara(lerFiltro("g"));
+  const d = await apiGet("incidentes", { comUnidades: "sim", de: j.de, ate: j.ate });
+  PERIODO = d.incidentes || [];
+  JANELA = j;
+}
+
+/* ================================================================== */
+/*  Utilidades de tela                                                */
+/* ================================================================== */
+const $ = id => document.getElementById(id);
+const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+const ICONE = {
+  fora:'<svg class="ic fora" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .4 11.6 6 6 11.6.4 6Z" fill="currentColor"/></svg>',
+  atencao:'<svg class="ic atencao" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .8 11.7 11H.3Z" fill="currentColor"/></svg>',
+  ok:'<svg class="ic ok" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.7" fill="currentColor"/></svg>'
+};
+const SETA = {
+  sobe:'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10V2m0 0L2.4 5.6M6 2l3.6 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  desce:'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2v8m0 0 3.6-3.6M6 10 2.4 6.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+};
+function selOpts(sel, vals, todos){
+  sel.replaceChildren();
+  sel.appendChild(new Option(todos, ""));
+  vals.forEach(v => sel.appendChild(new Option(v, v)));
+}
+/* os selects de evento e local só são preenchidos depois do `meta` */
+selOpts($("hSlot"), Array.from({length:12},(_,i)=>String(i+1)), "Todos");
+selOpts($("hPon"), Array.from({length:16},(_,i)=>String(i+1)), "Todas");
+
+/* ---------- abas ---------- */
+function mostrar(v){
+  document.querySelectorAll(".abas button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.v === v)));
+  document.querySelectorAll(".vista").forEach(s => s.classList.toggle("on", s.id === "v-"+v));
+  if (v === "geral") desenharTendencia();
+}
+document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => mostrar(b.dataset.v)));
+
+/* ---------- filtro ---------- */
+function lerFiltro(p){
+  const g = s => { const n = $(p+s); return n ? n.value : ""; };
+  return { ev:g("Ev"), loc:g("Loc"), de:g("De"), ate:g("Ate"), slot:g("Slot"), pon:g("Pon") };
+}
+/* `fonte` escolhe a lista: PERIODO para o que é histórico, ABERTOS para
+   o que é "agora". Sem fonte, o histórico. */
+function aplicar(f, fonte){
+  return (fonte || PERIODO).filter(inc => {
+    if (f.ev && inc.evento !== f.ev) return false;
+    if (f.loc && !inc.locais.includes(f.loc)) return false;
+    if (f.de && inc.inicio < f.de + "T00:00") return false;
+    if (f.ate && inc.inicio > f.ate + "T23:59") return false;
+    if (f.slot || f.pon){
+      const ok = inc.unidades.some(u => {
+        if (!u.slotPon) return false;
+        const okS = !f.slot || u.slotPon.startsWith("SLOT " + f.slot + " ");
+        const okP = !f.pon || u.slotPon.endsWith(" PON " + f.pon);
+        return okS && okP;
+      });
+      if (!ok) return false;
+    }
+    return true;
   });
 }
-
-async function loadMeta() {
-  meta = await apiGet("meta");
-  fillPlainSelect(document.getElementById("gOlt"), meta.olts, "Todas");
-  fillPlainSelect(document.getElementById("aOlt"), meta.olts, "Todas");
-  fillPlainSelect(document.getElementById("hOlt"), meta.olts, "Todas");
-  fillPlainSelect(document.getElementById("gEvento"), meta.eventos, "Todos");
-  fillPlainSelect(document.getElementById("aEvento"), meta.eventos, "Todos");
-  fillPlainSelect(document.getElementById("hEvento"), meta.eventos, "Todos");
-  fillNumberSelect(document.getElementById("hSlot"), 1, 30, "Todos");
-  fillNumberSelect(document.getElementById("hPon"), 1, 30, "Todos");
+const ROT = {ev:"Evento", loc:"Local", de:"De", ate:"Até", slot:"Slot", pon:"PON"};
+function tiraAtivos(caixa, f, prefixo, redesenhar){
+  const box = $(caixa);
+  box.replaceChildren();
+  const itens = Object.keys(ROT).filter(k => f[k]);
+  /* datas do preset padrão não contam como "filtro ativo" para não poluir */
+  const visiveis = itens.filter(k => k !== "de" && k !== "ate");
+  if (!visiveis.length){ box.classList.remove("on"); return; }
+  box.classList.add("on");
+  box.appendChild(el("span","rot","Filtrando por"));
+  visiveis.forEach(k => {
+    const chip = el("span","chip-f");
+    chip.appendChild(el("span","k", ROT[k]));
+    chip.appendChild(el("span",null, f[k]));
+    const x = el("button",null,"×");
+    x.type = "button";
+    x.setAttribute("aria-label","Remover filtro de " + ROT[k] + " " + f[k]);
+    x.addEventListener("click", () => { $(prefixo + k.charAt(0).toUpperCase() + k.slice(1)).value = ""; redesenhar(); });
+    chip.appendChild(x);
+    box.appendChild(chip);
+  });
+  const limpar = el("button","btn btn-sm","Limpar filtros");
+  limpar.type = "button";
+  limpar.addEventListener("click", () => {
+    visiveis.forEach(k => { $(prefixo + k.charAt(0).toUpperCase() + k.slice(1)).value = ""; });
+    redesenhar();
+  });
+  box.appendChild(limpar);
 }
 
-function fillNumberSelect(selectEl, min, max, allLabel) {
-  selectEl.innerHTML = "";
-  const blank = document.createElement("option");
-  blank.value = ""; blank.textContent = allLabel;
-  selectEl.appendChild(blank);
-  for (let i = min; i <= max; i++) {
-    const o = document.createElement("option"); o.value = i; o.textContent = i;
-    selectEl.appendChild(o);
+/* ---------- estado por local (nível de UNIDADE: local só existe na unidade) ---------- */
+/* `abertos` decide o estado de cada local (e não depende de data);
+   `doPeriodo` só alimenta a contagem "no período" do balão do censo. */
+function estadoLocais(abertos, doPeriodo){
+  const mapa = {};
+  LOCAIS.forEach(l => mapa[l] = {local:l, abertas:[], total:0, grave:false});
+  (doPeriodo || []).forEach(inc => inc.unidades.forEach(u => {
+    const m = mapa[u.local]; if (m) m.total++;
+  }));
+  abertos.forEach(inc => inc.unidades.forEach(u => {
+    const m = mapa[u.local]; if (!m) return;
+    if (u.situacao === "aberto"){ m.abertas.push({u, evento: inc.evento}); if (GRAVE.has(inc.evento)) m.grave = true; }
+  }));
+  Object.values(mapa).forEach(m => {
+    m.estado = !m.abertas.length ? "ok" : (m.grave ? "fora" : "atencao");
+    m.desde = m.abertas.reduce((min,a) => (!min || a.u.inicio < min) ? a.u.inicio : min, "");
+  });
+  return mapa;
+}
+
+/* ================================================================== */
+/*  Quadro de status                                                  */
+/* ================================================================== */
+function desenharQuadro(abertos, doPeriodo){
+  const mapa = estadoLocais(abertos, doPeriodo);
+  const todos = LOCAIS.map(l => mapa[l]);
+  const fora = todos.filter(m => m.estado === "fora").sort((a,b) => a.desde < b.desde ? -1 : 1);
+  const aten = todos.filter(m => m.estado === "atencao").sort((a,b) => a.desde < b.desde ? -1 : 1);
+  const ok = todos.filter(m => m.estado === "ok");
+
+  const q = $("quadro");
+  q.classList.remove("calmo","tenso","grave");
+  q.classList.add(fora.length ? "grave" : aten.length ? "tenso" : "calmo");
+
+  const alvo = fora.length ? fora : aten;
+  $("qNum").textContent = String(alvo.length || ok.length);
+  if (fora.length){
+    $("qTxt").textContent = fora.length === 1 ? "local fora do ar" : "locais fora do ar";
+    $("qSub").textContent = "o mais antigo está fora há " + decorrido(fora[0].desde);
+  } else if (aten.length){
+    $("qTxt").textContent = aten.length === 1 ? "local em atenção" : "locais em atenção";
+    $("qSub").textContent = "nada classificado como grave em aberto";
+  } else {
+    $("qTxt").textContent = "locais sem incidente aberto";
+    $("qSub").textContent = "nada em aberto neste momento";
+  }
+  const censo = $("qCenso");
+  censo.replaceChildren();
+  [["fora",fora.length,"fora do ar"],["atencao",aten.length,"em atenção"],["ok",ok.length,"sem incidentes"]]
+    .forEach(([k,n,rot]) => {
+      const s = el("span");
+      s.innerHTML = ICONE[k];
+      s.appendChild(el("b", null, String(n)));
+      s.appendChild(el("span", null, rot));
+      censo.appendChild(s);
+    });
+
+  /* blocos grandes: só quem está fora */
+  const bg = $("qFora"); bg.replaceChildren();
+  fora.slice(0,8).forEach(m => {
+    const b = el("button","bloco"); b.type = "button";
+    b.setAttribute("aria-label", m.local + " fora do ar há " + decorrido(m.desde) + ", " + m.abertas.length + " unidades em aberto. Ver em Eventos agora.");
+    const lin = el("div","lin"); lin.innerHTML = ICONE.fora; lin.appendChild(el("span",null,"fora do ar"));
+    b.appendChild(lin);
+    b.appendChild(el("div","nm", m.local));
+    b.appendChild(el("div","tempo", decorrido(m.desde)));
+    b.appendChild(el("div","un", m.abertas.length + (m.abertas.length === 1 ? " unidade em aberto" : " unidades em aberto")));
+    b.addEventListener("click", () => irParaAgora(m.local));
+    bg.appendChild(b);
+  });
+  if (!fora.length){
+    const v = el("div","vazio", aten.length ? "Nenhum local com incidente grave em aberto." : "Nenhuma unidade em aberto no período filtrado.");
+    bg.appendChild(v);
+  }
+
+  const ar = $("qAten"); ar.replaceChildren();
+  aten.forEach(m => {
+    const b = el("button","aten"); b.type = "button";
+    b.innerHTML = ICONE.atencao;
+    b.appendChild(el("b", null, m.local));
+    b.appendChild(el("span","t", decorrido(m.desde)));
+    b.setAttribute("aria-label", m.local + " em atenção há " + decorrido(m.desde) + ". Ver em Eventos agora.");
+    b.addEventListener("click", () => irParaAgora(m.local));
+    ar.appendChild(b);
+  });
+
+  /* régua de censo — silhueta de longe, identificação no tooltip de perto */
+  const r = $("qRegua"); r.replaceChildren();
+  todos.forEach(m => {
+    const i = el("i", m.estado === "ok" ? "" : m.estado);
+    const rot = m.estado === "fora" ? "fora do ar" : m.estado === "atencao" ? "em atenção" : "sem incidente aberto";
+    const cor = m.estado === "fora" ? "var(--fora)" : m.estado === "atencao" ? "var(--atencao)" : "var(--neutro)";
+    const extra = m.estado === "ok"
+      ? (m.total ? m.total + (m.total === 1 ? " unidade no período, já restabelecida" : " unidades no período, todas restabelecidas")
+                 : "sem registro no período filtrado")
+      : "há " + decorrido(m.desde) + "  ·  " + m.abertas.length +
+        (m.abertas.length === 1 ? " unidade em aberto" : " unidades em aberto");
+    const mostra = e => { i.classList.add("viva"); tipOn(e, m.local, rot, extra, cor, true); };
+    i.addEventListener("pointerenter", mostra);
+    i.addEventListener("pointermove", mostra);
+    i.addEventListener("pointerleave", () => { i.classList.remove("viva"); tipOff(); });
+    r.appendChild(i);
+  });
+  r.setAttribute("aria-label", "Censo de " + todos.length + " locais: " + fora.length +
+    " fora do ar, " + aten.length + " em atenção, " + ok.length + " sem incidentes abertos.");
+  $("qReguaN").textContent = todos.length + " locais";
+
+  $("qDetS").textContent = ok.length + (ok.length === 1 ? " local sem incidentes abertos" : " locais sem incidentes abertos");
+  const lo = $("qOk"); lo.replaceChildren();
+  ok.forEach(m => {
+    const b = el("button", null, m.local); b.type = "button";
+    b.setAttribute("aria-label", "Filtrar a visão geral por " + m.local);
+    b.addEventListener("click", () => { $("gLoc").value = m.local; desenharGeral(); });
+    lo.appendChild(b);
+  });
+  return {fora, aten, ok, todos};
+}
+function irParaAgora(local){
+  $("aLoc").value = local;
+  $("aEv").value = "";
+  desenharAgora();
+  mostrar("agora");
+  $("v-agora").focus();
+}
+
+/* ================================================================== */
+/*  Indicadores                                                       */
+/* ================================================================== */
+/* `lista` é o período (histórico); `abertos` é a lista de abertos, que
+   não depende de data — um incidente aberto há cem dias conta aqui
+   mesmo com o painel mostrando os últimos sete. */
+function desenharKpis(lista, f, abertos){
+  const fechados = lista.filter(i => i.situacao === "fechado");
+  $("kTotal").textContent = lista.length;
+  $("kAbertos").textContent = abertos.length;
+  const locaisAbertos = new Set();
+  abertos.forEach(i => i.unidades.forEach(u => {
+    if (u.situacao === "aberto") locaisAbertos.add(u.local);
+  }));
+  const nLoc = locaisAbertos.size;
+  const dA = $("kAbertosD"); dA.className = "d"; dA.replaceChildren();
+  dA.appendChild(el("span", null, nLoc ? "em " + nLoc + (nLoc === 1 ? " local" : " locais") : "nenhum no momento"));
+
+  const soma = fechados.reduce((s,i) => s + i.duracaoMin, 0);
+  $("kMttr").textContent = fechados.length ? fmtDur(Math.round(soma/fechados.length)) : "—";
+  $("kParado").textContent = fechados.length ? fmtDur(soma) : "—";
+
+  /* variação contra o período anterior de mesmo tamanho */
+  const maisAntigo = PERIODO.length ? PERIODO[PERIODO.length-1].inicio : sDataHora(agora());
+  const de = f.de ? dData(f.de + "T00:00") : dData(maisAntigo);
+  const ate = f.ate ? dData(f.ate + "T23:59") : agora();
+  const dias = Math.max(1, Math.round((ate - de)/86400000));
+  const antDe = new Date(de.getTime() - dias*86400000);
+  const ant = aplicar({ev:f.ev, loc:f.loc, de:sData(antDe), ate:sData(new Date(de.getTime()-86400000))});
+  const dT = $("kTotalD"); dT.className = "d"; dT.replaceChildren();
+  if (ant.length){
+    const dif = lista.length - ant.length;
+    dT.classList.add(dif > 0 ? "pior" : dif < 0 ? "melhor" : "");
+    if (dif !== 0) dT.innerHTML = SETA[dif > 0 ? "sobe" : "desce"];
+    dT.appendChild(el("span", null, (dif > 0 ? "+" : "") + dif + " contra os " + dias + " dias anteriores"));
+  } else {
+    dT.appendChild(el("span", null, "sem período anterior para comparar"));
+  }
+  const antF = ant.filter(i => i.situacao === "fechado");
+  const dM = $("kMttrD"); dM.className = "d"; dM.replaceChildren();
+  if (antF.length && fechados.length){
+    const m0 = Math.round(antF.reduce((s,i)=>s+i.duracaoMin,0)/antF.length);
+    const m1 = Math.round(soma/fechados.length);
+    const dif = m1 - m0;
+    dM.classList.add(dif > 0 ? "pior" : dif < 0 ? "melhor" : "");
+    if (dif !== 0) dM.innerHTML = SETA[dif > 0 ? "sobe" : "desce"];
+    dM.appendChild(el("span", null, (dif > 0 ? "+" : "-") + fmtDur(Math.abs(dif)) + " contra o período anterior"));
+  } else {
+    dM.appendChild(el("span", null, "tempo médio até o fechamento"));
   }
 }
 
-// ---------- datas padrão (recalculadas a cada carregamento) ----------
-function pad2(n) { return String(n).padStart(2, "0"); }
-function toDateInputValue(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
-function lastDayOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
-function startOfWeek(d) {
-  // Domingo é o início da semana (getDay() === 0)
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+/* ================================================================== */
+/*  Locais que mais doem (funde "por local" + ranking)                */
+/*  Conta UNIDADES e soma duracaoMin das UNIDADES.                    */
+/* ================================================================== */
+function desenharRanking(lista, f){
+  const por = {};
+  lista.forEach(inc => inc.unidades.forEach(u => {
+    const m = por[u.local] || (por[u.local] = {qtd:0, min:0, fech:0});
+    m.qtd++;
+    if (u.duracaoMin != null){ m.min += u.duracaoMin; m.fech++; }
+  }));
+  const dados = Object.entries(por).sort((a,b) => b[1].qtd - a[1].qtd || b[1].min - a[1].min).slice(0,10);
+  const totalUn = Object.values(por).reduce((s,m) => s + m.qtd, 0);
+  $("locSub").textContent = dados.length
+    ? totalUn + " unidades em " + Object.keys(por).length + " locais; os " + dados.length + " primeiros abaixo"
+    : "Sem unidades no período filtrado";
+
+  /* o redesenho troca os nós sob o cursor e o pointerleave nunca chega:
+     sem isso o balão fica preso na tela depois de um filtro ou refresh */
+  tipOff();
+  const body = $("rkBody"); body.replaceChildren();
+  if (!dados.length){ body.appendChild(el("div","vazio","Nenhuma unidade com esses filtros.")); return; }
+  const maxQ = Math.max(...dados.map(d => d[1].qtd));
+  const maxM = Math.max(...dados.map(d => d[1].min), 1);
+  dados.forEach(([loc,m],i) => {
+    const row = el("button","rk-row"); row.type = "button";
+    row.dataset.loc = loc;
+    if (f.loc === loc) row.setAttribute("aria-current","true");
+    row.setAttribute("aria-label", "Filtrar por " + loc + ": " + m.qtd + " unidades, " + fmtDur(m.min) + " parado. Média " + (m.fech ? fmtDur(Math.round(m.min/m.fech)) : "sem fechadas") + ".");
+    row.appendChild(el("span","rk-pos", String(i+1)));
+    row.appendChild(el("span","rk-nm", loc));
+    const t1 = el("span","trilho"); const i1 = el("i"); i1.style.width = (m.qtd/maxQ*100).toFixed(1)+"%"; t1.appendChild(i1);
+    row.appendChild(t1);
+    row.appendChild(el("span","rk-v", String(m.qtd)));
+    const t2 = el("span","trilho t2"); const i2 = el("i"); i2.style.width = (m.min/maxM*100).toFixed(1)+"%"; t2.appendChild(i2);
+    row.appendChild(t2);
+    row.appendChild(el("span","rk-v tempo", fmtDur(m.min)));
+    row.appendChild(el("span","rk-v fraco med", m.fech ? fmtDur(Math.round(m.min/m.fech)) : "—"));
+    row.addEventListener("click", () => {
+      tipOff();
+      $("gLoc").value = (f.loc === loc) ? "" : loc;
+      desenharGeral();
+    });
+    /* pointerenter além do pointermove: entrar na linha e parar o mouse
+       não dispara pointermove, e aí o balão nunca aparecia */
+    const med = m.fech ? fmtDur(Math.round(m.min/m.fech)) : "—";
+    const dica = e => tipOn(e, loc, m.qtd + (m.qtd === 1 ? " unidade" : " unidades"),
+      fmtDur(m.min) + " parado  ·  média " + med, "var(--s1)", true);
+    row.addEventListener("pointerenter", dica);
+    row.addEventListener("pointermove", dica);
+    row.addEventListener("pointerleave", tipOff);
+    body.appendChild(row);
+  });
 }
 
-function applyDefaultDates() {
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfMonth = lastDayOfMonth(today);
-  const weekStart = startOfWeek(today);
+/* ================================================================== */
+/*  Banda por tipo de evento (nível de INCIDENTE)                     */
+/* ================================================================== */
+function desenharTipos(lista, f){
+  const cont = {};
+  lista.forEach(inc => cont[inc.evento] = (cont[inc.evento]||0) + 1);
+  /* tipos que a planilha não conhece mais (renomeados, por exemplo)
+     também precisam de lugar: entram no fim, dentro de Outros */
+  const vistos = Object.keys(cont);
+  const ordem = EVENTOS.concat(vistos.filter(e => EVENTOS.indexOf(e) < 0));
+  const presentes = ordem.filter(e => cont[e]);
+  const tot = lista.length || 1;
 
-  document.getElementById("gStart").value = toDateInputValue(firstOfMonth);
-  document.getElementById("gEnd").value = toDateInputValue(lastOfMonth);
+  /* a FAIXA agrupa o excedente em Outros; a LEGENDA nomeia todos */
+  const fatias = [];
+  const porFatia = {};
+  presentes.forEach(e => {
+    const nome = fatiaDe(e);
+    if (!(nome in porFatia)){ porFatia[nome] = 0; fatias.push(nome); }
+    porFatia[nome] += cont[e];
+  });
+  const dados = fatias.map(nm => [nm, porFatia[nm]]);
+  const dentroDeOutros = presentes.filter(dobradoEmOutros);
 
-  document.getElementById("aStart").value = toDateInputValue(weekStart);
-  document.getElementById("aEnd").value = toDateInputValue(lastOfMonth);
+  $("tipoSub").textContent = presentes.length
+    ? lista.length + (lista.length === 1 ? " incidente" : " incidentes") + " em " +
+      presentes.length + (presentes.length === 1 ? " tipo" : " tipos")
+    : "Sem incidentes";
+
+  const banda = $("banda"); banda.replaceChildren();
+  const leg = $("legTipo"); leg.replaceChildren();
+  if (!dados.length){ banda.style.display = "none"; leg.appendChild(el("div","vazio","Nenhum incidente com esses filtros.")); return; }
+  banda.style.display = "flex";
+
+  const membrosTexto = dentroDeOutros.map(e => e + " (" + cont[e] + ")").join(", ");
+  dados.forEach(([nm,v]) => {
+    const pct = v/tot*100;
+    const ehOutros = nm === OUTROS;
+    const seg = el("button"); seg.type = "button";
+    seg.style.flexGrow = String(pct);
+    seg.style.background = COR_EV[nm] || "var(--neutro)";
+    if (pct >= 9) seg.textContent = String(v);
+    if (f.ev && (ehOutros ? dentroDeOutros.indexOf(f.ev) >= 0 : f.ev === nm)) seg.setAttribute("aria-current","true");
+    seg.setAttribute("aria-label", ehOutros
+      ? "Outros: " + v + " incidentes, " + Math.round(pct) + "%. Reúne " + membrosTexto + "."
+      : nm + ": " + v + " incidentes, " + Math.round(pct) + "%. Filtrar por este tipo.");
+    seg.addEventListener("pointermove", e => tipOn(e, v + (v===1?" incidente":" incidentes"), nm,
+      ehOutros ? membrosTexto : Math.round(pct)+"% do período", COR_EV[nm] || "var(--neutro)"));
+    seg.addEventListener("pointerleave", tipOff);
+    if (ehOutros){
+      seg.style.cursor = "default";           /* não há um tipo só para filtrar */
+    } else {
+      seg.addEventListener("click", () => { tipOff(); $("gEv").value = (f.ev === nm) ? "" : nm; desenharGeral(); });
+    }
+    banda.appendChild(seg);
+  });
+
+  /* A legenda nomeia TODOS os tipos, um por um, inclusive os que a faixa
+     agrupou — e todos continuam filtrando. Nada fica só dentro do balão. */
+  presentes.forEach(nm => {
+    const v = cont[nm];
+    const b = el("button"); b.type = "button";
+    if (f.ev === nm) b.setAttribute("aria-current","true");
+    const sw = el("span","sw"); sw.style.background = COR_EV[nm] || "var(--neutro)"; b.appendChild(sw);
+    const cel = el("span","nm", nm);
+    if (dobradoEmOutros(nm)) cel.appendChild(el("i","dentro","em Outros"));
+    b.appendChild(cel);
+    b.appendChild(el("span","n", String(v)));
+    b.appendChild(el("span","p", Math.round(v/tot*100) + "%"));
+    b.setAttribute("aria-label", nm + ": " + v + " incidentes" +
+      (dobradoEmOutros(nm) ? ", agrupado em Outros na faixa" : "") + ". Filtrar por este tipo.");
+    b.addEventListener("click", () => { $("gEv").value = (f.ev === nm) ? "" : nm; desenharGeral(); });
+    leg.appendChild(b);
+  });
 }
 
-// ---------- tabs ----------
-document.querySelectorAll("nav.tabs button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+/* ================================================================== */
+/*  Tendência por dia (nível de INCIDENTE, pelo início)               */
+/* ================================================================== */
+const tip = $("tip");
+function tipOn(e, valor, chave, extra, cor, nome){
+  tip.replaceChildren();
+  tip.className = nome ? "tip nome" : "tip";
+  tip.appendChild(el("div","tv", valor));
+  const l = el("div","tl");
+  if (cor){ const i = el("i"); i.style.background = cor; l.appendChild(i); }
+  l.appendChild(el("span","tk", chave));
+  tip.appendChild(l);
+  if (extra) tip.appendChild(el("div","tk", extra));
+  tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 15, y = e.clientY - h - 12;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 15;
+  if (y < 8) y = e.clientY + 18;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function tipOff(){ tip.style.display = "none"; }
+
+let TEND = [];
+function calcTendencia(lista, f){
+  const por = {};
+  lista.forEach(inc => { const d = inc.inicio.slice(0,10); por[d] = (por[d]||0) + 1; });
+  const chaves = Object.keys(por).sort();
+  let ini = f.de || chaves[0], fim = f.ate || chaves[chaves.length-1];
+  if (!ini || !fim) return [];
+  const a = dData(ini + "T00:00"), b = dData(fim + "T00:00");
+  const dias = Math.min(200, Math.round((b - a)/86400000) + 1);
+  const out = [];
+  for (let i = 0; i < dias; i++){
+    const d = new Date(a.getTime() + i*86400000);
+    const k = sData(d);
+    out.push({dia:k, n: por[k]||0, rot: p2(d.getDate())+"/"+p2(d.getMonth()+1)});
+  }
+  return out;
+}
+function desenharTendencia(){
+  const svg = $("chTend");
+  const dados = TEND;
+  svg.replaceChildren();
+  if (!dados.length){ $("tendSub").textContent = "Sem dados no período"; return; }
+  const total = dados.reduce((s,d) => s+d.n, 0);
+  const pico = dados.reduce((m,d) => d.n > m.n ? d : m, dados[0]);
+  $("tendSub").textContent = dados.length + (dados.length===1?" dia":" dias") + ", " + total + (total===1?" incidente":" incidentes") + "; pico de " + pico.n + " em " + pico.rot;
+
+  const larg = Math.max(300, Math.round(svg.getBoundingClientRect().width || svg.parentNode.getBoundingClientRect().width - 30));
+  const H = 218, L = 34, R = 18, T = 24, B = 30;
+  svg.setAttribute("viewBox", "0 0 " + larg + " " + H);
+  svg.style.height = H + "px";
+  const maxN = Math.max(...dados.map(d => d.n), 4);
+  const passoY = maxN <= 4 ? 1 : Math.ceil(maxN/4);
+  const topo = Math.ceil(maxN/passoY)*passoY;
+  const X = i => L + (larg-L-R) * (dados.length === 1 ? .5 : i/(dados.length-1));
+  const Y = v => T + (H-T-B) * (1 - v/topo);
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (t,at) => { const n = document.createElementNS(NS,t); for (const k in at) n.setAttribute(k, at[k]); return n; };
+
+  for (let v = 0; v <= topo; v += passoY){
+    svg.appendChild(mk("line",{class:"g", x1:L, x2:larg-R, y1:Y(v), y2:Y(v)}));
+    const t = mk("text",{class:"tick", x:L-8, y:Y(v)+4, "text-anchor":"end"}); t.textContent = v; svg.appendChild(t);
+  }
+  svg.appendChild(mk("line",{class:"eixo", x1:L, x2:larg-R, y1:Y(0), y2:Y(0)}));
+
+  const passoX = Math.max(1, Math.ceil(dados.length/ (larg < 560 ? 5 : 9)));
+  const folga = 66;                       /* largura mínima entre dois rótulos */
+  const marcas = [];
+  for (let i = 0; i < dados.length; i += passoX) marcas.push(i);
+  const ultimo = dados.length-1;
+  while (marcas.length && X(ultimo) - X(marcas[marcas.length-1]) < folga) marcas.pop();
+  if (marcas[marcas.length-1] !== ultimo) marcas.push(ultimo);
+  marcas.forEach(i => {
+    const t = mk("text",{class:"tick", x:X(i), y:H-9,
+      "text-anchor": i === ultimo ? "end" : (i === 0 ? "start" : "middle")});
+    t.textContent = dados[i].rot; svg.appendChild(t);
+  });
+
+  const pts = dados.map((d,i) => X(i).toFixed(1) + "," + Y(d.n).toFixed(1));
+  svg.appendChild(mk("path",{class:"area", d:"M"+X(0).toFixed(1)+","+Y(0).toFixed(1)+" L"+pts.join(" L")+" L"+X(dados.length-1).toFixed(1)+","+Y(0).toFixed(1)+" Z"}));
+  svg.appendChild(mk("polyline",{class:"linha", points:pts.join(" ")}));
+
+  /* rótulo direto só no pico e no último ponto */
+  const iPico = dados.indexOf(pico), iFim = dados.length-1;
+  if (pico.n > 0){
+    const t = mk("text",{class:"rot", x:X(iPico), y:Math.max(T-9, Y(pico.n)-9), "text-anchor": iPico > dados.length*.85 ? "end" : "middle"});
+    t.textContent = pico.n; svg.appendChild(t);
+    svg.appendChild(mk("circle",{cx:X(iPico), cy:Y(pico.n), r:4, fill:"var(--s1)", stroke:"var(--surface)", "stroke-width":2}));
+  }
+  if (iFim !== iPico){
+    svg.appendChild(mk("circle",{cx:X(iFim), cy:Y(dados[iFim].n), r:4, fill:"var(--s1)", stroke:"var(--surface)", "stroke-width":2}));
+  }
+
+  const cruz = mk("line",{class:"cruz", x1:0, x2:0, y1:T-4, y2:Y(0)});
+  const ponto = mk("circle",{class:"pt", cx:0, cy:0, r:5.5});
+  svg.appendChild(cruz); svg.appendChild(ponto);
+  const captura = mk("rect",{x:L, y:T-6, width:Math.max(1, larg-L-R), height:H-T-B+6, fill:"transparent"});
+  svg.appendChild(captura);
+
+  let idx = -1;
+  function foco(i, ev){
+    idx = Math.max(0, Math.min(dados.length-1, i));
+    const d = dados[idx];
+    cruz.setAttribute("x1", X(idx)); cruz.setAttribute("x2", X(idx));
+    ponto.setAttribute("cx", X(idx)); ponto.setAttribute("cy", Y(d.n));
+    svg.classList.add("ativo");
+    const caixa = svg.getBoundingClientRect();
+    const escala = caixa.width / larg;
+    const falso = ev || {clientX: caixa.left + X(idx)*escala, clientY: caixa.top + Y(d.n)*escala};
+    tipOn(falso, d.n + (d.n === 1 ? " incidente" : " incidentes"), fmtDHA(d.dia + "T00:00").slice(0,10), "aberto neste dia", "var(--s1)");
+  }
+  function sair(){ svg.classList.remove("ativo"); tipOff(); idx = -1; }
+  captura.addEventListener("pointermove", e => {
+    const caixa = svg.getBoundingClientRect();
+    const x = (e.clientX - caixa.left) / caixa.width * larg;
+    const i = dados.length === 1 ? 0 : Math.round((x - L)/(larg-L-R)*(dados.length-1));
+    foco(i, e);
+  });
+  captura.addEventListener("pointerleave", sair);
+  svg.addEventListener("blur", sair);
+  svg.onkeydown = e => {
+    if (e.key === "ArrowRight"){ foco(idx < 0 ? 0 : idx+1); e.preventDefault(); }
+    else if (e.key === "ArrowLeft"){ foco(idx < 0 ? dados.length-1 : idx-1); e.preventDefault(); }
+    else if (e.key === "Escape"){ sair(); }
+  };
+
+  /* tabela equivalente — nenhum valor fica só no tooltip */
+  const tab = $("tendTab"); tab.replaceChildren();
+  const thead = el("thead"); const tr = el("tr");
+  tr.appendChild(el("th","","Dia")); tr.appendChild(el("th","num","Incidentes"));
+  thead.appendChild(tr); tab.appendChild(thead);
+  const tb = el("tbody");
+  dados.filter(d => d.n > 0).forEach(d => {
+    const r = el("tr");
+    r.appendChild(el("td","c-t", fmtDHA(d.dia+"T00:00").slice(0,10)));
+    r.appendChild(el("td","num c-t", String(d.n)));
+    tb.appendChild(r);
+  });
+  tab.appendChild(tb);
+}
+
+/* ================================================================== */
+/*  Slot / PON — uma leitura só, usada na tabela, nos cards e na tela */
+/*  de apresentação. Agrupa por slot e lista os números do PON.       */
+/* ================================================================== */
+function gruposSlotPon(inc){
+  const por = new Map();
+  inc.unidades.forEach(u => {
+    if (!u.slotPon) return;
+    const m = u.slotPon.match(/SLOT\s+(\d+)\s+PON\s+(\d+)/);
+    if (!m) return;
+    if (!por.has(m[1])) por.set(m[1], []);
+    por.get(m[1]).push({ pon: m[2], fechado: u.situacao === "fechado" });
+  });
+  return [...por.entries()]
+    .sort((a,b) => Number(a[0]) - Number(b[0]))
+    .map(([slot, pons]) => ({ slot, pons: pons.sort((a,b) => Number(a.pon) - Number(b.pon)) }));
+}
+
+/* "SLOT 05 · PON 4, 5, 6" — texto puro, para aria-label e impressão */
+function textoSlotPon(g){
+  return "SLOT " + p2(g.slot) + " · PON " + g.pons.map(p => p.pon).join(", ");
+}
+
+/* o que o leitor de tela ouve: quais estão de volta e quais não */
+function rotuloSlotPon(g){
+  const vol = g.pons.filter(p => p.fechado).map(p => p.pon);
+  const ab  = g.pons.filter(p => !p.fechado).map(p => p.pon);
+  let s = "Slot " + p2(g.slot) + ": ";
+  if (ab.length) s += "PON " + ab.join(", ") + " em aberto";
+  if (vol.length) s += (ab.length ? "; " : "") + "PON " + vol.join(", ") +
+    (vol.length === 1 ? " restabelecida" : " restabelecidas");
+  return s;
+}
+
+/* os números do PON, cada um na tinta do seu estado */
+function numerosPon(g){
+  const w = document.createDocumentFragment();
+  g.pons.forEach((p,i) => {
+    if (i) w.appendChild(document.createTextNode(", "));
+    w.appendChild(el("span", "pn " + (p.fechado ? "ok" : "fora"), p.pon));
+  });
+  return w;
+}
+
+/* a legenda é feita com as mesmas tintas: ela é a própria chave */
+function legendaPon(temFechada, temAberta){
+  const s = el("span","pon-leg","PON ");
+  if (temAberta){ s.appendChild(el("span","pn fora","em aberto")); }
+  if (temAberta && temFechada) s.appendChild(document.createTextNode(" / "));
+  if (temFechada){ s.appendChild(el("span","pn ok","restabelecida")); }
+  return s;
+}
+
+/* resumo curto para a linha da tabela: porta única sai inteira,
+   várias portas ficam resumidas e o detalhe completo fica no expandir */
+function resumoPorta(inc){
+  if (inc.escopo !== "porta") return "";
+  const g = gruposSlotPon(inc);
+  if (!g.length) return "";
+  const tot = g.reduce((s,x) => s + x.pons.length, 0);
+  if (tot === 1) return textoSlotPon(g[0]);
+  if (g.length === 1) return "SLOT " + p2(g[0].slot) + " · " + tot + " portas";
+  return g.length + " slots · " + tot + " portas";
+}
+
+/* ================================================================== */
+/*  Tabela de incidentes: uma linha por incidente, expansível         */
+/* ================================================================== */
+function linhaTabela(inc, tbody){
+  const tr = el("tr","linha-inc");
+  tr.tabIndex = 0;
+  tr.setAttribute("role","button");
+  tr.setAttribute("aria-expanded","false");
+  const tdA = el("td"); const abre = el("span","abre");
+  abre.innerHTML = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5l-4 3.5"/></svg>';
+  tdA.appendChild(abre); tr.appendChild(tdA);
+  tr.appendChild(el("td","c-id", inc.id));
+  tr.appendChild(el("td","c-ev", inc.evento));
+  const tdL = el("td","c-loc", inc.locaisTexto);
+  const rp = resumoPorta(inc);
+  if (rp) tdL.appendChild(el("span","pt", rp));
+  tr.appendChild(tdL);
+  tr.appendChild(el("td","c-t", fmtDH(inc.inicio)));
+  tr.appendChild(el("td","c-t", inc.situacao === "aberto" ? "há " + decorrido(inc.inicio) : fmtDur(inc.duracaoMin)));
+  tr.appendChild(el("td","portas", inc.escopo === "porta" ? inc.qtdRestabelecidas + "/" + inc.qtdPortas : "—"));
+  const tdS = el("td"); const pill = el("span","pill " + inc.situacao);
+  pill.innerHTML = ICONE[inc.situacao === "aberto" ? "fora" : "ok"];
+  pill.appendChild(el("span", null, inc.situacao === "aberto" ? "Aberto" : "Fechado"));
+  tdS.appendChild(pill); tr.appendChild(tdS);
+
+  const trd = el("tr","det"); trd.hidden = true;
+  const tdd = el("td"); tdd.colSpan = 8; trd.appendChild(tdd);
+
+  function alternar(){
+    const abrindo = trd.hidden;
+    trd.hidden = !abrindo;
+    tr.classList.toggle("aberta", abrindo);
+    tr.setAttribute("aria-expanded", String(abrindo));
+    if (abrindo && !tdd.firstChild) tdd.appendChild(detalhe(inc));
+  }
+  tr.addEventListener("click", alternar);
+  tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); alternar(); } });
+  tbody.appendChild(tr); tbody.appendChild(trd);
+}
+
+function par(dt, dd, mono){
+  const d = el("div");
+  d.appendChild(el("dt", null, dt));
+  d.appendChild(el("dd", mono ? "m" : null, dd));
+  return d;
+}
+function detalhe(inc){
+  const box = el("div","det-box");
+  const dl = el("dl","dl");
+  dl.appendChild(par("Evento", inc.evento));
+  dl.appendChild(par("Situação", inc.situacao === "aberto" ? "Aberto" : "Fechado"));
+  dl.appendChild(par(inc.qtdLocais === 1 ? "Local" : "Locais (" + inc.qtdLocais + ")", inc.locaisTexto));
+  dl.appendChild(par("Início", fmtDHA(inc.inicio), true));
+  dl.appendChild(par("Término", inc.termino ? fmtDHA(inc.termino) : "em aberto", true));
+  dl.appendChild(par("Duração", inc.situacao === "aberto" ? "em aberto há " + decorrido(inc.inicio) : fmtDur(inc.duracaoMin), true));
+  if (inc.escopo === "porta"){
+    dl.appendChild(par("Portas restabelecidas", inc.qtdRestabelecidas + " de " + inc.qtdPortas, true));
+  } else {
+    const fech = inc.unidades.filter(u => u.situacao === "fechado").length;
+    dl.appendChild(par("Locais restabelecidos", fech + " de " + inc.unidades.length, true));
+  }
+  dl.appendChild(par("Horário da informação", fmtDHA(inc.horarioInformacao), true));
+  dl.appendChild(par("Fonte", inc.fonte));
+  box.appendChild(dl);
+
+  const obs = el("dl","det-obs");
+  obs.appendChild(el("dt", null, "Observação"));
+  obs.appendChild(el("dd", null, inc.observacao || "Sem observação registrada."));
+  box.appendChild(obs);
+
+  const un = el("div","det-un");
+  un.appendChild(el("div","cap", inc.unidades.length + (inc.unidades.length === 1 ? " unidade neste incidente" : " unidades neste incidente")));
+  const t = el("table");
+  const th = el("thead"); const tr = el("tr");
+  ["Local","Slot / PON","Início","Término","Duração","Situação"].forEach((h,i) => tr.appendChild(el("th", i === 4 ? "num" : "", h)));
+  th.appendChild(tr); t.appendChild(th);
+  const tb = el("tbody");
+  inc.unidades.forEach(u => {
+    const r = el("tr");
+    r.appendChild(el("td", null, u.local));
+    r.appendChild(el("td","c-t", u.slotPon || "sem porta"));
+    r.appendChild(el("td","c-t", fmtDHA(u.inicio)));
+    r.appendChild(el("td","c-t", u.termino ? fmtDHA(u.termino) : "em aberto"));
+    r.appendChild(el("td","c-t num", u.situacao === "aberto" ? "há " + decorrido(u.inicio) : fmtDur(u.duracaoMin)));
+    const td = el("td"); const p = el("span","pill " + u.situacao);
+    p.innerHTML = ICONE[u.situacao === "aberto" ? "fora" : "ok"];
+    p.appendChild(el("span", null, u.situacao === "aberto" ? "Aberto" : "Fechado"));
+    td.appendChild(p); r.appendChild(td);
+    tb.appendChild(r);
+  });
+  t.appendChild(tb);
+  const rol = el("div","rolagem"); rol.appendChild(t);
+  un.appendChild(rol); box.appendChild(un);
+  return box;
+}
+
+function paginar(lista, pg, porPg, tbody, infoEl, prevEl, nextEl, onPg){
+  const paginas = Math.max(1, Math.ceil(lista.length/porPg));
+  const p = Math.min(Math.max(1, pg), paginas);
+  const fatia = lista.slice((p-1)*porPg, p*porPg);
+  tbody.replaceChildren();
+  if (!fatia.length){
+    const tr = el("tr"); const td = el("td"); td.colSpan = 8;
+    td.appendChild(el("div","vazio","Nenhum incidente com esses filtros."));
+    tr.appendChild(td); tbody.appendChild(tr);
+  } else fatia.forEach(inc => linhaTabela(inc, tbody));
+  infoEl.replaceChildren();
+  infoEl.appendChild(el("span", null, "Página "));
+  infoEl.appendChild(el("b", null, String(p)));
+  infoEl.appendChild(el("span", null, " de "));
+  infoEl.appendChild(el("b", null, String(paginas)));
+  infoEl.appendChild(el("span", null, "  ·  " + lista.length + (lista.length === 1 ? " incidente" : " incidentes") + ", " + porPg + " por página"));
+  prevEl.disabled = p <= 1; nextEl.disabled = p >= paginas;
+  onPg(p);
+  return p;
+}
+
+/* ================================================================== */
+/*  Visão geral                                                       */
+/* ================================================================== */
+let gPagina = 1;
+const POR_PG = 12;
+function desenharGeral(resetPg){
+  const f = lerFiltro("g");
+  const lista = aplicar(f);
+  /* o que é "agora" não leva filtro de data: um incidente aberto fora da
+     janela escolhida continua sendo um incidente aberto */
+  const abertos = aplicar({ ev:f.ev, loc:f.loc }, ABERTOS);
+  tiraAtivos("gAtivos", f, "g", () => desenharGeral(true));
+  sincronizarPresets("gPre", f);
+  desenharQuadro(abertos, lista);
+  desenharKpis(lista, f, abertos);
+  desenharRanking(lista, f);
+  desenharTipos(lista, f);
+  TEND = calcTendencia(lista, f);
+  if ($("v-geral").classList.contains("on")) desenharTendencia();
+  const ord = [...lista];
+  $("gTabSub").textContent = lista.length + (lista.length === 1 ? " incidente" : " incidentes") + " no período";
+  if (resetPg) gPagina = 1;
+  gPagina = paginar(ord, gPagina, POR_PG, $("gTab"), $("gPg"), $("gPrev"), $("gNext"), p => gPagina = p);
+  atualizarCabImpressao(f);
+  if (document.body.classList.contains("apres")) desenharApres();
+}
+$("btnFiltroG").addEventListener("click", () => garantirJanela(() => desenharGeral(true)));
+$("gPrev").addEventListener("click", () => { gPagina--; desenharGeral(); });
+$("gNext").addEventListener("click", () => { gPagina++; desenharGeral(); });
+["gEv","gLoc"].forEach(id => $(id).addEventListener("change", () => desenharGeral(true)));
+["gDe","gAte"].forEach(id => $(id).addEventListener("change", () => garantirJanela(() => desenharGeral(true))));
+
+/* ================================================================== */
+/*  Eventos agora — cards com peso                                    */
+/* ================================================================== */
+function desenharAgora(){
+  const f = lerFiltro("a");
+  const lista = aplicar(f, ABERTOS);
+  tiraAtivos("aAtivos", f, "a", desenharAgora);
+  const nAbertos = ABERTOS.length;
+  const cnt = $("cntAgora");
+  cnt.textContent = String(nAbertos);
+  cnt.classList.toggle("zero", nAbertos === 0);
+  $("aSub").textContent = lista.length
+    ? lista.length + (lista.length === 1 ? " incidente em aberto" : " incidentes em aberto") + ", do mais grave para o mais antigo"
+    : "Nada em aberto com esses filtros";
+
+  const box = $("aCards"); box.replaceChildren();
+  if (!lista.length){ box.appendChild(el("div","vazio","Nenhum incidente em aberto com esses filtros.")); return; }
+  const ord = [...lista].sort((a,b) =>
+    (GRAVE.has(b.evento) - GRAVE.has(a.evento)) || (a.inicio < b.inicio ? -1 : 1));
+
+  ord.forEach(inc => {
+    const grave = GRAVE.has(inc.evento);
+    const card = el("article","card " + (grave ? "fora" : "atencao"));
+    card.appendChild(el("div","spine"));
+
+    const L = el("div","card-l");
+    const top = el("div","k-top");
+    top.appendChild(el("div","k-loc", inc.locaisTexto));
+    const pev = el("span","k-ev");
+    const i = el("i"); i.style.background = COR_EV[inc.evento] || "var(--neutro)";
+    pev.appendChild(i); pev.appendChild(el("span", null, inc.evento));
+    top.appendChild(pev);
+    const est = el("span","pill aberto");
+    est.innerHTML = ICONE[grave ? "fora" : "atencao"];
+    est.appendChild(el("span", null, grave ? "Fora do ar" : "Em atenção"));
+    top.appendChild(est);
+    L.appendChild(top);
+
+    if (inc.escopo === "porta"){
+      const gs = gruposSlotPon(inc);
+      const volta = inc.unidades.filter(u => u.situacao === "fechado").length;
+      const km = el("div","k-mais", inc.qtdPortas + (inc.qtdPortas === 1 ? " porta afetada" : " portas afetadas"));
+      km.appendChild(legendaPon(volta > 0, volta < inc.unidades.length));
+      L.appendChild(km);
+      const slots = el("div","slots");
+      gs.forEach(g => {
+        const c = el("span","slotc");
+        c.setAttribute("role","img");
+        c.setAttribute("aria-label", rotuloSlotPon(g));
+        c.appendChild(el("b", null, "SLOT " + p2(g.slot)));
+        const sp = el("span","pons","PON ");
+        sp.appendChild(numerosPon(g));
+        c.appendChild(sp);
+        slots.appendChild(c);
+      });
+      L.appendChild(slots);
+    } else {
+      L.appendChild(el("div","k-mais", inc.qtdLocais === 1 ? "Ocorrência sem porta, atinge o local inteiro" : inc.qtdLocais + " locais atingidos, sem porta"));
+      if (inc.qtdLocais > 1){
+        const slots = el("div","slots");
+        inc.unidades.forEach(u => {
+          const c = el("span","slotc");
+          c.appendChild(el("b", null, u.local));
+          c.appendChild(el("span", null, u.situacao === "aberto" ? "em aberto" : "restabelecido"));
+          slots.appendChild(c);
+        });
+        L.appendChild(slots);
+      }
+    }
+
+    const fech = inc.unidades.filter(u => u.situacao === "fechado").length;
+    const tot = inc.unidades.length;
+    if (inc.escopo === "porta" || tot > 1){
+    const prog = el("div","prog");
+    const rot = el("div","rot");
+    const esq = el("span");
+    esq.appendChild(el("b", null, fech + " de " + tot));
+    esq.appendChild(el("span", null, inc.escopo === "porta" ? " portas restabelecidas" : " locais restabelecidos"));
+    rot.appendChild(esq);
+    rot.appendChild(el("span", null, Math.round(fech/tot*100) + "%"));
+    prog.appendChild(rot);
+    const rail = el("div","rail"); const fill = el("i");
+    fill.style.width = (fech/tot*100).toFixed(1) + "%";
+    rail.appendChild(fill); prog.appendChild(rail);
+    L.appendChild(prog);
+    }
+
+    if (inc.observacao) L.appendChild(el("p","obs", inc.observacao));
+    card.appendChild(L);
+
+    const R = el("div","card-r");
+    R.appendChild(el("div","k-elk","decorrido"));
+    R.appendChild(el("div","k-el", decorrido(inc.inicio)));
+    const meta = el("div","meta");
+    const m1 = el("div"); m1.appendChild(el("span", null, "desde")); m1.appendChild(el("b","m", fmtDHA(inc.inicio)));
+    const m2 = el("div"); m2.appendChild(el("span", null, "informado às")); m2.appendChild(el("b","m", fmtDHA(inc.horarioInformacao)));
+    meta.appendChild(m1); meta.appendChild(m2);
+    R.appendChild(meta);
+    card.appendChild(R);
+
+    const pe = el("div","rodape");
+    const f1 = el("span"); f1.appendChild(el("span", null, "fonte ")); f1.appendChild(el("b", null, inc.fonte));
+    const f2 = el("span"); f2.appendChild(el("span", null, "identificação ")); f2.appendChild(el("b","m", inc.id));
+    pe.appendChild(f1); pe.appendChild(f2);
+    if (inc.escopo !== "porta" && tot === 1){
+      const f3 = el("span"); f3.appendChild(el("span", null, "situação "));
+      f3.appendChild(el("b", null, "nenhuma unidade restabelecida"));
+      pe.appendChild(f3);
+    }
+    card.appendChild(pe);
+    box.appendChild(card);
+  });
+}
+$("btnFiltroA").addEventListener("click", desenharAgora);   /* os abertos já estão todos carregados */
+["aEv","aLoc","aDe","aAte"].forEach(id => $(id).addEventListener("change", desenharAgora));
+
+/* Contagem visível até a próxima busca dos abertos. Quem dispara de fato
+   é o relógio da sincronização; isto aqui só mostra quanto falta, e por
+   isso é acertado a cada busca bem-sucedida. */
+const CICLO = 60;
+let restante = CICLO;
+function reiniciarContagem(){ restante = CICLO; }
+setInterval(() => {
+  if (document.hidden) return;
+  restante = Math.max(0, restante - 1);
+  const cd = $("aCd");
+  if (cd) cd.textContent = restante + "s";
+}, 1000);
+
+/* ================================================================== */
+/*  Histórico geral                                                   */
+/* ================================================================== */
+let hPagina = 1;
+function desenharHist(resetPg){
+  const f = lerFiltro("h");
+  const lista = aplicar(f);
+  tiraAtivos("hAtivos", f, "h", () => desenharHist(true));
+  sincronizarPresets("hPre", f);
+  $("hTabSub").textContent = lista.length + (lista.length === 1 ? " incidente" : " incidentes") + (f.slot || f.pon ? " com essa porta" : " no filtro");
+  if (resetPg) hPagina = 1;
+  hPagina = paginar(lista, hPagina, POR_PG, $("hTab"), $("hPg"), $("hPrev"), $("hNext"), p => hPagina = p);
+}
+$("btnFiltroH").addEventListener("click", () => garantirJanela(() => desenharHist(true)));
+$("hPrev").addEventListener("click", () => { hPagina--; desenharHist(); });
+$("hNext").addEventListener("click", () => { hPagina++; desenharHist(); });
+["hEv","hLoc","hSlot","hPon"].forEach(id => $(id).addEventListener("change", () => desenharHist(true)));
+["hDe","hAte"].forEach(id => $(id).addEventListener("change", () => garantirJanela(() => desenharHist(true))));
+
+/* ---------- presets de período ---------- */
+/* d=0 é "Tudo": limpa as duas datas e a busca passa a pedir a base
+   inteira. Em compensação é a consulta mais pesada que existe aqui. */
+function sincronizarPresets(grupo, f){
+  const hoje = sData(agora());
+  document.querySelectorAll("#" + grupo + " button").forEach(b => {
+    const d = Number(b.dataset.d);
+    if (!d){ b.setAttribute("aria-pressed", String(!f.de && !f.ate)); return; }
+    const de = sData(new Date(agora().getTime() - (d-1)*86400000));
+    b.setAttribute("aria-pressed", String(f.ate === hoje && f.de === de));
+  });
+}
+function ligarPresets(grupo, prefixo, redesenhar){
+  document.querySelectorAll("#" + grupo + " button").forEach(b => b.addEventListener("click", () => {
+    const d = Number(b.dataset.d);
+    if (!d){ $(prefixo+"De").value = ""; $(prefixo+"Ate").value = ""; }
+    else {
+      $(prefixo+"De").value = sData(new Date(agora().getTime() - (d-1)*86400000));
+      $(prefixo+"Ate").value = sData(agora());
+    }
+    redesenhar();
+  }));
+}
+ligarPresets("gPre","g", () => garantirJanela(() => desenharGeral(true)));
+ligarPresets("hPre","h", () => garantirJanela(() => desenharHist(true)));
+
+/* ================================================================== */
+/*  Atualizar / PDF / tema                                            */
+/* ================================================================== */
+/* ==================================================================
+   Sincronização
+
+   A planilha não empurra nada, então o painel puxa — em dois ritmos,
+   porque os dados têm vidas diferentes:
+
+     abertos   60s    lista pequena, e é a que precisa estar viva
+     período   10min  lista grande, muda devagar
+     Atualizar          força as duas
+
+   Três regras que valem mais que a atualização em si:
+
+   1. Falha de rede NUNCA apaga o que está na tela. O último dado bom
+      fica, e o painel diz de quando ele é. Numa tela de parede, tela
+      em branco é pior que número velho.
+   2. A tabela não se redesenha sozinha debaixo da mão de ninguém. Se
+      há linha expandida ou o ponteiro está dentro dela, o redesenho
+      espera e avisa que há dado novo.
+   3. O carimbo do cabeçalho é a hora da última sincronização que deu
+      certo — não a hora do relógio.
+   ================================================================== */
+
+const SINC_ABERTOS_MS = 60000;
+const SINC_PERIODO_MS = 600000;
+const VELHO_MS = 180000;        /* a partir daqui o dado é anunciado como velho */
+
+let ultimoErro = null;
+let sincronizando = false;
+let periodoPendente = false;    /* chegou dado novo com a tabela em uso */
+
+function marcarSelo(){
+  const s = $("stamp");
+  if (!SELO){ s.textContent = "—"; $("apRel").textContent = "--:--"; return; }
+  const d = dData(SELO);
+  s.textContent = p2(d.getDate())+"/"+p2(d.getMonth()+1)+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+  const n = agora();
+  $("apRel").textContent = p2(n.getHours())+":"+p2(n.getMinutes());
+}
+
+/* A tabela está em uso? Linha aberta ou ponteiro dentro dela. */
+let ponteiroNaTabela = false;
+["gTab","hTab"].forEach(id => {
+  const t = $(id);
+  if (!t) return;
+  const caixa = t.closest(".tab-wrap") || t;
+  caixa.addEventListener("pointerenter", () => { ponteiroNaTabela = true; });
+  caixa.addEventListener("pointerleave", () => {
+    ponteiroNaTabela = false;
+    if (periodoPendente) aplicarPeriodoPendente();
   });
 });
+function tabelaEmUso(){
+  if (document.body.classList.contains("apres")) return false;   /* na parede ninguém mexe */
+  if (ponteiroNaTabela) return true;
+  return !!document.querySelector("#gTab tr.linha-inc.aberta, #hTab tr.linha-inc.aberta");
+}
+function aplicarPeriodoPendente(){
+  if (!periodoPendente) return;
+  periodoPendente = false;
+  desenharGeral(); desenharHist();
+  mostrarEstado();
+}
 
-// ---------- gráficos ----------
-function groupBy(items, field) {
-  const map = {};
-  items.forEach(it => {
-    const key = it[field] || "(sem valor)";
-    map[key] = (map[key] || 0) + 1;
+/* ---------- o aviso ---------- */
+function mostrarEstado(){
+  const cx = $("estado");
+  if (!cx) return;
+  let tipo = "", txt = "", acao = null;
+
+  if (sincronizando && !SELO){ tipo = "carregando"; txt = "Buscando os dados na planilha…"; }
+  else if (ultimoErro){
+    tipo = "erro";
+    txt = ultimoErro + (SELO ? "  Mostrando os dados de " + fmtDHA(SELO) + "." : "");
+    acao = "Tentar de novo";
+  } else if (periodoPendente){
+    tipo = "aviso";
+    txt = "Chegaram dados novos. A tabela não foi redesenhada para não mexer no que você está lendo.";
+    acao = "Mostrar agora";
+  } else if (SELO && (agora() - dData(SELO)) > VELHO_MS){
+    tipo = "aviso";
+    txt = "Os dados são de " + fmtDHA(SELO) + " e não atualizam desde então.";
+    acao = "Atualizar";
+  }
+
+  /* glifos da faixa — próprios, de propósito: os do ICONE (losango/triângulo)
+     são o status da REDE e não podem ser confundidos com o estado da busca.
+     planilha = de onde o dado vem; relógio = o dado tem idade (não "quebrou");
+     seta circular = o mesmo traço do botão "Atualizar" lá em cima. */
+  const GLIFO = {
+    carregando:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1.4"/><path d="M3 9.5h18M9.5 9.5V20"/></svg>',
+    erro:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.4 2"/></svg>',
+    aviso:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 3.5V10h-6.5"/></svg>'
+  };
+
+  cx.className = "estado" + (tipo ? " " + tipo : "");
+  cx.replaceChildren();
+  if (!tipo){ cx.hidden = true; return; }
+  cx.hidden = false;
+
+  const lamp = el("div","lampada");
+  lamp.innerHTML = GLIFO[tipo];
+  cx.appendChild(lamp);
+
+  const corpo = el("div","corpo");
+  corpo.appendChild(el("span","txt", txt));
+  if (acao){
+    const b = el("button","btn btn-sm", acao);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      if (periodoPendente) aplicarPeriodoPendente();
+      else sincronizar(false);
+    });
+    corpo.appendChild(b);
+  }
+  cx.appendChild(corpo);
+  if (document.body.classList.contains("apres")) desenharApres();
+}
+
+/* ---------- as buscas ---------- */
+async function sincronizar(silencioso, oQue){
+  if (sincronizando) return;
+  sincronizando = true;
+  const b = $("btnAtualizar");
+  if (!silencioso){ b.classList.add("girando"); b.disabled = true; }
+  mostrarEstado();
+  try {
+    const alvo = janelaNecessaria();
+    const querPeriodo = oQue !== "abertos" || !janelaCobre(alvo);
+    await buscarAbertos();
+    if (querPeriodo) await buscarPeriodo(janelaCobre(alvo) ? JANELA : alvo);
+
+    SELO = sDataHora(agora());
+    ultimoErro = null;
+    reiniciarContagem();
+
+    /* o "agora" pode sempre redesenhar: ninguém está lendo uma tabela ali */
+    desenharAgora();
+    if (querPeriodo && tabelaEmUso()){
+      periodoPendente = true;                 /* segura só as tabelas */
+      desenharGeralSemTabela();
+    } else {
+      periodoPendente = false;
+      desenharGeral(); desenharHist();
+    }
+    if (document.body.classList.contains("apres")) desenharApres();
+  } catch (e){
+    ultimoErro = e && e.rede
+      ? "Não deu para falar com a planilha."
+      : String((e && e.message) || "A planilha recusou a consulta.");
+  } finally {
+    sincronizando = false;
+    b.classList.remove("girando"); b.disabled = false;
+    marcarSelo();
+    mostrarEstado();
+  }
+}
+
+/* Redesenha tudo da visão geral menos a tabela — usado quando chega dado
+   novo e alguém está com o dedo nela. */
+function desenharGeralSemTabela(){
+  const f = lerFiltro("g");
+  const lista = aplicar(f);
+  const abertos = aplicar({ ev:f.ev, loc:f.loc }, ABERTOS);
+  desenharQuadro(abertos, lista);
+  desenharKpis(lista, f, abertos);
+  desenharRanking(lista, f);
+  desenharTipos(lista, f);
+  TEND = calcTendencia(lista, f);
+  if ($("v-geral").classList.contains("on")) desenharTendencia();
+}
+
+/* Só as barras que leem o PERÍODO entram na conta: a visão geral e o
+   histórico. A de Eventos agora filtra a lista de abertos, que já vem
+   inteira e sem data — se ela contasse aqui, o campo vazio dela pediria
+   a base toda em todo carregamento.
+
+   Entre as duas, vale a janela mais larga: senão mexer no filtro do
+   histórico deixaria a visão geral sem dado, ou o contrário. */
+function janelaNecessaria(){
+  const alvos = ["g","h"].map(p => janelaPara(lerFiltro(p)));
+  if (alvos.some(a => a.de === "")) return { de: "", ate: "" };
+  return { de: alvos.map(a => a.de).sort()[0], ate: "" };
+}
+
+/* Um filtro pode pedir período fora da janela carregada. Aí busca. */
+async function garantirJanela(redesenhar){
+  if (janelaCobre(janelaNecessaria())){ redesenhar(); return; }
+  await sincronizar(false);
+  redesenhar();
+}
+
+$("btnAtualizar").addEventListener("click", () => sincronizar(false));
+$("btnPdf").addEventListener("click", () => window.print());
+
+setInterval(() => {
+  if (document.hidden || !SELO) return;
+  sincronizar(true, "abertos");
+}, SINC_ABERTOS_MS);
+
+setInterval(() => {
+  if (document.hidden || !SELO) return;
+  sincronizar(true);
+}, SINC_PERIODO_MS);
+
+/* o aviso de "dado velho" precisa aparecer sozinho, sem esperar busca */
+setInterval(() => { if (!document.hidden) mostrarEstado(); }, 30000);
+
+function atualizarCabImpressao(f){
+  const partes = [];
+  if (f.ev) partes.push("evento " + f.ev);
+  if (f.loc) partes.push("local " + f.loc);
+  if (f.de || f.ate) partes.push("período de " + (f.de ? fmtDHA(f.de+"T00:00").slice(0,10) : "início") +
+    " a " + (f.ate ? fmtDHA(f.ate+"T00:00").slice(0,10) : "hoje"));
+  const c = $("imprCab"); c.replaceChildren();
+  c.appendChild(el("b", null, "Painel de ocorrências na rede"));
+  c.appendChild(el("div", null, partes.length ? "Filtro: " + partes.join("; ") : "Sem filtro aplicado"));
+  c.appendChild(el("div", null, "Dados de " + fmtDHA(sDataHora(agora())) +
+    ". O painel só lê; o registro das ocorrências é feito no registrador."));
+  $("apFiltro").textContent = partes.length ? partes.join(", ") : "período completo";
+}
+
+/* tema */
+function aplicarTema(t){
+  document.documentElement.setAttribute("data-tema", t);
+  $("temaTxt").textContent = t === "claro" ? "Plano escuro" : "Plano claro";
+  $("btnTema").setAttribute("aria-label", t === "claro" ? "Mudar para o plano escuro" : "Mudar para o plano claro");
+  try { localStorage.setItem("painel-tema", t); } catch(e){}
+  desenharTendencia();
+}
+$("btnTema").addEventListener("click", () => {
+  aplicarTema(document.documentElement.getAttribute("data-tema") === "claro" ? "escuro" : "claro");
+});
+
+/* ================================================================== */
+/*  Modo apresentação — tela própria, paisagem, sem rolagem           */
+/* ================================================================== */
+let apTimer = null, apIdx = 0, apMexeu = null;
+const AP_MS = 15000;
+
+/* ---------- rolagem suave da lista em aberto ----------
+   Numa tela de parede não há como rolar à mão, então a lista se move
+   sozinha quando não cabe: pausa no topo, desce devagar, pausa no fim e
+   volta. Só transform e opacity — nada que force layout a cada quadro.  */
+const ROL_TOPO = 3000, ROL_FIM = 2000, ROL_FADE = 380, ROL_PX_S = 30;
+let rolTimers = [], rolSenha = 0;
+function pararRolagem(){ rolTimers.forEach(clearTimeout); rolTimers = []; rolSenha++; }
+function rolDepois(ms, fn){ rolTimers.push(setTimeout(fn, ms)); }
+
+function rolarLista(vp, lst){
+  pararRolagem();
+  const senha = rolSenha;
+  lst.style.transition = "none";
+  lst.style.transform = "translateY(0)";
+  lst.style.opacity = "1";
+  requestAnimationFrame(() => {
+    if (senha !== rolSenha || !vp.isConnected) return;
+    const sobra = lst.scrollHeight - vp.clientHeight;
+    if (sobra <= 1){ lst.classList.add("cabe"); return; }   /* coube: fica parada */
+    lst.classList.add("rola");
+
+    /* quem pediu menos movimento recebe saltos secos, não rolagem */
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches){
+      const passo = Math.max(1, vp.clientHeight);
+      const paginas = Math.max(2, Math.ceil(lst.scrollHeight / passo));
+      let i = 0;
+      const pular = () => {
+        i = (i + 1) % paginas;
+        lst.style.transition = "none";
+        lst.style.transform = "translateY(" + (-Math.min(i * passo, sobra)) + "px)";
+        rolDepois(5000, pular);
+      };
+      rolDepois(5000, pular);
+      return;
+    }
+
+    /* a descida cabe na janela de 15s da alternância: 3s + descida + 2s */
+    const dur = Math.min(Math.max(sobra / ROL_PX_S * 1000, 3000), AP_MS - ROL_TOPO - ROL_FIM);
+    const ciclo = () => {
+      lst.style.transition = "none";
+      lst.style.transform = "translateY(0)";
+      void lst.offsetHeight;
+      lst.style.transition = "opacity " + ROL_FADE + "ms ease";
+      lst.style.opacity = "1";
+      rolDepois(ROL_TOPO, () => {
+        lst.style.transition = "transform " + dur + "ms linear";
+        lst.style.transform = "translateY(" + (-sobra) + "px)";
+        rolDepois(dur + ROL_FIM, () => {
+          lst.style.transition = "opacity " + ROL_FADE + "ms ease";
+          lst.style.opacity = "0";
+          rolDepois(ROL_FADE + 20, ciclo);
+        });
+      });
+    };
+    ciclo();
   });
-  return Object.entries(map).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 }
 
-function groupByMonth(items) {
-  const map = {};
-  items.forEach(it => {
-    if (!it.inicio) return;
-    const key = it.inicio.slice(0, 7);
-    map[key] = (map[key] || 0) + 1;
+function desenharApres(){
+  const f = lerFiltro("g");
+  const lista = aplicar(f);                          /* o período, para o painel de baixo */
+  const abertos = aplicar({ ev:f.ev, loc:f.loc }, ABERTOS);   /* o agora, sem data */
+  const mapa = estadoLocais(abertos, lista);
+  const todos = LOCAIS.map(l => mapa[l]);
+  const fora = todos.filter(m => m.estado === "fora").sort((a,b) => a.desde < b.desde ? -1 : 1);
+  const aten = todos.filter(m => m.estado === "atencao").sort((a,b) => a.desde < b.desde ? -1 : 1);
+  const ok = todos.filter(m => m.estado === "ok");
+
+  const ver = $("apVer");
+  ver.classList.remove("calmo","tenso");
+  if (!fora.length) ver.classList.add(aten.length ? "tenso" : "calmo");
+  const alvo = fora.length ? fora : (aten.length ? aten : ok);
+  $("apN").textContent = String(alvo.length);
+  $("apT").textContent = fora.length
+    ? (fora.length === 1 ? "local fora do ar" : "locais fora do ar")
+    : aten.length ? (aten.length === 1 ? "local em atenção" : "locais em atenção")
+    : "locais sem incidente aberto";
+  $("apS").textContent = fora.length
+    ? "o mais antigo está fora há " + decorrido(fora[0].desde)
+    : aten.length ? "nada grave em aberto" : "rede estável";
+
+  /* Grade cheia primeiro; o que passar disso vira cartão reduzido logo
+     abaixo, na mesma cor — nenhum local é resumido em "+N". Quanto mais
+     locais caídos, menos cartões cheios, para que os reduzidos caibam
+     inteiros: uma fileira cortada pela metade é pior que um cartão menor. */
+  const emFoco = fora.length ? fora : aten;
+  const AP_CHEIOS = emFoco.length <= 6 ? emFoco.length : emFoco.length <= 10 ? 6 : 3;
+  const bl = $("apBl"); bl.replaceChildren();
+  emFoco.slice(0,AP_CHEIOS).forEach(m => {
+    const d = el("div","ap-bl");
+    if (!fora.length){ d.style.background = "var(--aten-track)"; d.style.borderColor = "var(--atencao)"; }
+    d.appendChild(el("div","nm", m.local));
+    d.appendChild(el("div","t", decorrido(m.desde)));
+    d.appendChild(el("div","u", m.abertas.length + (m.abertas.length === 1 ? " unidade" : " unidades")));
+    bl.appendChild(d);
   });
-  return Object.keys(map).sort().map(k => ({ label: k, value: map[k] }));
-}
+  const mn = $("apMini"); mn.replaceChildren();
+  mn.classList.toggle("aten", !fora.length);
+  mn.classList.toggle("denso", emFoco.length - AP_CHEIOS > 12);
+  emFoco.slice(AP_CHEIOS).forEach(m => {
+    const d = el("div","ap-mn");
+    d.appendChild(el("span","n", m.local));
+    d.appendChild(el("span","t", decorrido(m.desde)));
+    mn.appendChild(d);
+  });
 
-function renderBarList(container, data, color) {
-  if (!data.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
-  const max = Math.max(...data.map(d => d.value), 1);
-  container.innerHTML = data.slice(0, 8).map(d => `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
-      <div style="width:110px;font-size:11px;font-family:var(--mono);color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(d.label)}</div>
-      <div style="flex:1;background:var(--surface-2);border-radius:4px;height:16px;"><div style="width:${(d.value / max * 100).toFixed(1)}%;background:${color};height:16px;border-radius:4px;"></div></div>
-      <div style="width:30px;font-size:11px;font-family:var(--mono);text-align:right;">${d.value}</div>
-    </div>
-  `).join("");
-}
+  const at = $("apAt"); at.replaceChildren();
+  if (fora.length) aten.slice(0,6).forEach(m => {
+    const d = el("div","ap-at");
+    d.appendChild(el("span","n", m.local));
+    d.appendChild(el("span","t", decorrido(m.desde)));
+    at.appendChild(d);
+  });
 
-function renderPieChart(container, data) {
-  const nonZero = data.filter(d => d.value > 0);
-  if (!nonZero.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
-  const total = nonZero.reduce((s, d) => s + d.value, 0);
-  const cx = 90, cy = 90, r = 80;
-  let paths = "";
-  if (nonZero.length === 1) {
-    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${PALETTE[0]}"></circle>`;
+  const r = $("apRegua"); r.replaceChildren();
+  todos.forEach(m => r.appendChild(el("i", m.estado === "ok" ? "" : m.estado)));
+  $("apReguaK").textContent = fora.length + " fora do ar, " + aten.length + " em atenção, " + ok.length + " sem incidentes";
+  $("apReguaN").textContent = todos.length + " locais no cadastro";
+
+  /* painel secundário: é só ele que alterna */
+  const sec = $("apSec"); pararRolagem(); sec.replaceChildren();
+  if (apIdx === 0){
+    const cab = el("div","ap-cab");
+    cab.appendChild(el("h3","","Em aberto agora"));
+    sec.appendChild(cab);
+    const emAberto = abertos.slice()
+      .sort((a,b) => (GRAVE.has(b.evento) - GRAVE.has(a.evento)) || (a.inicio < b.inicio ? -1 : 1));
+    /* a chave de cor dos PON fica no cabeçalho: uma vez para a lista toda */
+    const comPorta = emAberto.filter(i => i.escopo === "porta");
+    if (comPorta.length){
+      const temOk = comPorta.some(i => i.unidades.some(u => u.situacao === "fechado"));
+      const temFora = comPorta.some(i => i.unidades.some(u => u.situacao === "aberto"));
+      const lg = legendaPon(temOk, temFora);
+      lg.classList.add("ap-leg");
+      cab.appendChild(lg);
+    }
+    const vp = el("div","ap-vp");
+    const lst = el("div","ap-lista");
+    if (!emAberto.length) lst.appendChild(el("div","vazio","Nada em aberto."));
+    emAberto.forEach(inc => {
+      const li = el("div","ap-li");
+      const a = el("div","a");
+      a.appendChild(el("div","n", inc.locaisTexto));
+      const k = el("div","k");
+      k.innerHTML = ICONE[GRAVE.has(inc.evento) ? "fora" : "atencao"];
+      k.appendChild(el("span", null, inc.evento + (inc.escopo === "porta" ? " — " + inc.qtdRestabelecidas + " de " + inc.qtdPortas + " portas" : "")));
+      a.appendChild(k);
+      if (inc.escopo === "porta"){
+        const pp = el("div","pp");
+        gruposSlotPon(inc).forEach(g => {
+          const lin = el("span","g", "SLOT " + p2(g.slot) + " · PON ");
+          lin.appendChild(numerosPon(g));
+          lin.setAttribute("role","img");
+          lin.setAttribute("aria-label", rotuloSlotPon(g));
+          pp.appendChild(lin);
+        });
+        if (pp.firstChild) a.appendChild(pp);
+      }
+      li.appendChild(a);
+      li.appendChild(el("div","b", decorrido(inc.inicio)));
+      lst.appendChild(li);
+    });
+    vp.appendChild(lst);
+    sec.appendChild(vp);
+    rolarLista(vp, lst);
   } else {
-    let angle = -Math.PI / 2;
-    nonZero.forEach((d, i) => {
-      const frac = d.value / total;
-      const sweep = frac * 2 * Math.PI;
-      const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
-      const endAngle = angle + sweep;
-      const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
-      const largeArc = sweep > Math.PI ? 1 : 0;
-      const color = PALETTE[i % PALETTE.length];
-      paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${color}"></path>`;
-      angle = endAngle;
+    sec.appendChild(el("h3","","O período filtrado"));
+    const fechados = lista.filter(i => i.situacao === "fechado");
+    const soma = fechados.reduce((s,i) => s+i.duracaoMin, 0);
+    const tri = el("div","ap-tri");
+    [["incidentes", String(lista.length)],
+     ["MTTR", fechados.length ? fmtDur(Math.round(soma/fechados.length)) : "—"],
+     ["tempo parado", fechados.length ? fmtDur(soma) : "—"]].forEach(([k,v]) => {
+      const d = el("div");
+      d.appendChild(el("div","k", k));
+      d.appendChild(el("div","v", v));
+      tri.appendChild(d);
     });
-  }
-  const legend = nonZero.map((d, i) => `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-      <span style="width:10px;height:10px;border-radius:2px;background:${PALETTE[i % PALETTE.length]};display:inline-block;flex:none;"></span>
-      <span style="font-size:11px;font-family:var(--mono);color:var(--text-dim);">${escapeHtml(d.label)} (${d.value})</span>
-    </div>
-  `).join("");
-  container.innerHTML = `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
-    <svg viewBox="0 0 180 180" width="150" height="150">${paths}</svg>
-    <div>${legend}</div>
-  </div>`;
-}
+    sec.appendChild(tri);
 
-function renderTrendChart(container, data) {
-  if (!data.length) { container.innerHTML = '<div class="empty">Sem dados para esse filtro.</div>'; return; }
-  const max = Math.max(...data.map(d => d.value), 1);
-  const bars = data.map(d => `<div title="${d.label}: ${d.value}" style="flex:1;background:var(--surface-2);border-radius:3px 3px 0 0;height:${Math.max(d.value / max * 100, 4).toFixed(1)}%;position:relative;"><div style="position:absolute;bottom:0;left:0;right:0;background:var(--accent);height:100%;border-radius:3px 3px 0 0;"></div></div>`).join("");
-  const labels = data.map(d => `<div style="flex:1;text-align:center;font-size:9px;color:var(--text-dim);font-family:var(--mono);">${d.label.slice(5)}</div>`).join("");
-  container.innerHTML = `<div style="display:flex;align-items:flex-end;gap:6px;height:80px;">${bars}</div><div style="display:flex;gap:6px;margin-top:6px;">${labels}</div>`;
-}
-
-// ---------- Visão geral ----------
-function currentGeralFilter() {
-  return {
-    evento: document.getElementById("gEvento").value,
-    olt: document.getElementById("gOlt").value,
-    start: document.getElementById("gStart").value,
-    end: document.getElementById("gEnd").value
-  };
-}
-async function loadVisaoGeral() {
-  const f = currentGeralFilter();
-  try {
-    const result = await apiGet("queryEntries", Object.assign({ status: "all" }, f));
-    const items = result.items;
-    const abertos = items.filter(it => !it.termino).length;
-    const fechados = items.length - abertos;
-    document.getElementById("mAbertos").textContent = abertos;
-    document.getElementById("mFechados").textContent = fechados;
-    document.getElementById("mTotal").textContent = items.length;
-    renderBarList(document.getElementById("chartOlt"), groupBy(items, "olt"), "var(--accent)");
-    renderPieChart(document.getElementById("chartEvento"), groupBy(items, "evento"));
-    renderTrendChart(document.getElementById("chartTrend"), groupByMonth(items));
-  } catch (err) {
-    document.getElementById("mAbertos").textContent = "erro";
-  }
-}
-document.getElementById("btnFiltrarGeral").addEventListener("click", loadVisaoGeral);
-
-// ---------- Eventos agora ----------
-function currentAgoraFilter() {
-  return {
-    evento: document.getElementById("aEvento").value,
-    olt: document.getElementById("aOlt").value,
-    start: document.getElementById("aStart").value,
-    end: document.getElementById("aEnd").value
-  };
-}
-async function loadEventosAgora() {
-  const f = currentAgoraFilter();
-  const container = document.getElementById("listaAgora");
-  container.innerHTML = '<div class="empty">Carregando...</div>';
-  try {
-    const result = await apiGet("queryEntries", Object.assign({ status: "open" }, f));
-    const items = result.items;
-    if (!items.length) { container.innerHTML = '<div class="empty">Nenhum evento em aberto com esses filtros.</div>'; return; }
-    const oltCounts = {};
-    items.forEach(it => { oltCounts[it.olt] = (oltCounts[it.olt] || 0) + 1; });
-    container.innerHTML = "";
-    items.forEach(it => {
-      const multi = oltCounts[it.olt] > 1;
-      const card = document.createElement("div");
-      card.className = "card";
-      if (multi) card.style.borderLeft = "3px solid var(--danger)";
-      card.innerHTML = `
-        <div class="id">${escapeHtml(it.id)}${multi ? '<span class="badge" style="color:var(--danger);border-color:var(--danger);">' + oltCounts[it.olt] + ' abertos nesta OLT</span>' : ""}</div>
-        <div class="meta"><b>${escapeHtml(it.evento)}</b> · ${escapeHtml(it.olt)}${it.slotPon ? " · " + escapeHtml(it.slotPon) : ""}</div>
-        <div class="meta">Início: ${fmtDate(it.inicio)}</div>
-        ${it.obs ? '<div style="margin-top:8px;font-size:12.5px;color:var(--text);font-family:var(--sans);">' + escapeHtml(it.obs) + "</div>" : ""}
-      `;
-      container.appendChild(card);
+    const dias = TEND.slice(-30);
+    const maxN = Math.max(...dias.map(d => d.n), 1);
+    const cols = el("div","ap-cols");
+    dias.forEach(d => {
+      const i = el("i", d.n ? "" : "z");
+      i.style.height = d.n ? (d.n/maxN*100).toFixed(1)+"%" : "4%";
+      cols.appendChild(i);
     });
-  } catch (err) {
-    container.innerHTML = '<div class="empty">Erro ao carregar: ' + escapeHtml(err.message) + "</div>";
-  }
-}
-document.getElementById("btnFiltrarAgora").addEventListener("click", loadEventosAgora);
+    sec.appendChild(cols);
+    const cr = el("div","ap-colr");
+    cr.appendChild(el("span", null, dias.length ? dias[0].rot : ""));
+    cr.appendChild(el("span", null, "incidentes por dia"));
+    cr.appendChild(el("span", null, dias.length ? dias[dias.length-1].rot : ""));
+    sec.appendChild(cr);
 
-// ---------- Histórico geral ----------
-let histOffset = 0;
-
-function currentHistoricoFilter() {
-  return {
-    evento: document.getElementById("hEvento").value,
-    olt: document.getElementById("hOlt").value,
-    slot: document.getElementById("hSlot").value,
-    pon: document.getElementById("hPon").value,
-    start: document.getElementById("hStart").value,
-    end: document.getElementById("hEnd").value
-  };
-}
-async function loadHistorico(preserveOffset) {
-  if (!preserveOffset) histOffset = 0;
-  const f = currentHistoricoFilter();
-  const container = document.getElementById("tabelaHistorico");
-  const hint = document.getElementById("hintHistorico");
-  container.innerHTML = '<div class="empty">Carregando...</div>';
-  hint.textContent = "";
-  try {
-    const result = await apiGet("queryEntries", Object.assign({ status: "all", limit: HIST_LIMIT, offset: histOffset }, f));
-    const items = result.items;
-    if (!items.length) { container.innerHTML = '<div class="empty">Nenhum evento encontrado com esses filtros.</div>'; return; }
-
-    const totalPages = Math.max(1, Math.ceil(result.total / HIST_LIMIT));
-    const currentPage = Math.floor(result.offset / HIST_LIMIT) + 1;
-    hint.textContent = result.total + " evento(s) encontrado(s).";
-
-    let html = '<div class="tbl">';
-    html += '<div class="tbl-row tbl-head"><div>Evento</div><div>Início</div><div>OLT</div><div>Slot/PON</div><div>Conclusão</div></div>';
-    items.forEach(it => {
-      const conclusao = it.termino ? fmtDate(it.termino) : '<span class="badge" style="color:var(--danger);border-color:var(--danger);margin-left:0;">Aberto</span>';
-      html += `<div class="tbl-row tbl-body">
-        <div>${escapeHtml(it.evento)}</div>
-        <div>${fmtDate(it.inicio)}</div>
-        <div>${escapeHtml(it.olt)}</div>
-        <div>${escapeHtml(it.slotPon)}</div>
-        <div>${conclusao}</div>
-      </div>`;
+    const por = {};
+    lista.forEach(inc => inc.unidades.forEach(u => por[u.local] = (por[u.local]||0) + 1));
+    const top = Object.entries(por).sort((a,b) => b[1]-a[1]).slice(0,4);
+    const lst = el("div","ap-lista");
+    top.forEach(([loc,n]) => {
+      const li = el("div","ap-li");
+      const a = el("div","a");
+      a.appendChild(el("div","n", loc));
+      a.appendChild(el("div","k","unidades no período"));
+      li.appendChild(a);
+      li.appendChild(el("div","b", String(n)));
+      lst.appendChild(li);
     });
-    html += "</div>";
-    html += `<div class="pagination">
-      <div class="info">Página ${currentPage} de ${totalPages}</div>
-      <div class="btns">
-        <button type="button" id="histPrev" ${currentPage <= 1 ? "disabled" : ""}>‹ Anterior</button>
-        <button type="button" id="histNext" ${currentPage >= totalPages ? "disabled" : ""}>Próxima ›</button>
-      </div>
-    </div>`;
-    container.innerHTML = html;
-
-    const prevBtn = document.getElementById("histPrev");
-    const nextBtn = document.getElementById("histNext");
-    if (prevBtn) prevBtn.addEventListener("click", () => { histOffset = Math.max(0, histOffset - HIST_LIMIT); loadHistorico(true); });
-    if (nextBtn) nextBtn.addEventListener("click", () => { histOffset += HIST_LIMIT; loadHistorico(true); });
-  } catch (err) {
-    container.innerHTML = '<div class="empty">Erro ao carregar: ' + escapeHtml(err.message) + "</div>";
+    sec.appendChild(lst);
   }
-}
-document.getElementById("btnFiltrarHistorico").addEventListener("click", () => loadHistorico(false));
 
-// ---------- init ----------
-if (!isConfigured) {
-  document.getElementById("configBanner").style.display = "block";
-} else {
-  applyDefaultDates();
-  loadMeta().then(() => {
-    loadVisaoGeral();
-    loadEventosAgora();
-    loadHistorico();
+  const bot = $("apBot"); bot.replaceChildren();
+  const abertosN = abertos.length;
+  const fech = lista.filter(i => i.situacao === "fechado");
+  const somaF = fech.reduce((s,i) => s+i.duracaoMin, 0);
+  [["em aberto agora", String(abertosN)],
+   ["incidentes no período", String(lista.length)],
+   ["MTTR por incidente", fech.length ? fmtDur(Math.round(somaF/fech.length)) : "—"],
+   ["tempo total parado", fech.length ? fmtDur(somaF) : "—"]].forEach(([k,v]) => {
+    const d = el("div");
+    d.appendChild(el("div","k", k));
+    d.appendChild(el("div","v", v));
+    bot.appendChild(d);
   });
+
+  $("apDots").replaceChildren(...[0,1].map(i => el("i", i === apIdx ? "on" : "")));
+  marcarSelo();
 }
+function entrarApres(){
+  document.documentElement.style.overflow = "hidden";
+  scrollTo(0, 0);
+  document.body.classList.add("apres");
+  $("apres").setAttribute("aria-hidden","false");
+  apIdx = 0; desenharApres();
+  clearInterval(apTimer);
+  apTimer = setInterval(() => { apIdx = (apIdx+1) % 2; desenharApres(); }, AP_MS);
+  addEventListener("pointermove", mexeu);
+  $("btnSairApres").focus();
+}
+function sairApres(){
+  document.documentElement.style.overflow = "";
+  document.body.classList.remove("apres","mexeu");
+  $("apres").setAttribute("aria-hidden","true");
+  clearInterval(apTimer); apTimer = null;
+  pararRolagem();
+  removeEventListener("pointermove", mexeu);
+  clearTimeout(apMexeu);
+  $("btnApres").focus();
+}
+function mexeu(){
+  document.body.classList.add("mexeu");
+  clearTimeout(apMexeu);
+  apMexeu = setTimeout(() => document.body.classList.remove("mexeu"), 2600);
+}
+$("btnApres").addEventListener("click", entrarApres);
+$("btnSairApres").addEventListener("click", sairApres);
+addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("apres")) sairApres();
+});
+
+/* ================================================================== */
+/*  Início                                                            */
+/* ================================================================== */
+(function iniciar(){
+  try {
+    const t = localStorage.getItem("painel-tema");
+    if (t === "claro" || t === "escuro") { aplicarTema(t); }
+    else { aplicarTema(matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro"); }
+  } catch(e){ aplicarTema("claro"); }
+
+  const hoje = agora();
+  const de30 = new Date(hoje.getTime() - 29*86400000);
+  /* As duas abas começam na mesma janela. Se o histórico nascesse sem
+     data, "sem filtro" significaria "a base inteira" e o painel puxaria
+     centenas de KB logo no primeiro carregamento, sem ninguém pedir. */
+  $("gDe").value = sData(de30); $("gAte").value = sData(hoje);
+  $("hDe").value = sData(de30); $("hAte").value = sData(hoje);
+  marcarSelo();
+
+  /* O cadastro vem primeiro: sem ele os selects ficam vazios e a paleta
+     não tem em que se apoiar. Só depois os incidentes. */
+  (async () => {
+    sincronizando = true; mostrarEstado();
+    try {
+      await buscarMeta();
+    } catch (e){
+      sincronizando = false;
+      ultimoErro = e && e.rede
+        ? "Não deu para falar com a planilha."
+        : String((e && e.message) || "A planilha recusou a consulta.");
+      mostrarEstado();
+      return;
+    }
+    sincronizando = false;
+    await sincronizar(false);
+  })();
+
+  let rz;
+  addEventListener("resize", () => {
+    clearTimeout(rz);
+    rz = setTimeout(() => {
+      if ($("v-geral").classList.contains("on")) desenharTendencia();
+      if (document.body.classList.contains("apres")) desenharApres();
+    }, 160);
+  });
+})();
 </script>
 </body>
 </html>
