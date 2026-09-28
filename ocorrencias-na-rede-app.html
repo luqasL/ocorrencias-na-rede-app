@@ -1752,8 +1752,10 @@ const demo = (function(){
       });
     }
     lista.sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
+    // o total conta o que existe, nao o que sobrou do corte -- igual ao Codigo.gs
+    const totalInc = lista.length;
     if(p.limite) lista = lista.slice(0, Number(p.limite));
-    return {total:lista.length, incidentes:lista};
+    return {total:totalInc, incidentes:lista};
   }
 
   function listarOcorrencias(p){
@@ -1774,8 +1776,9 @@ const demo = (function(){
       out.push(montarOcorrencia(r));
     });
     out.sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
+    const totalOc = out.length;                 // idem
     if(p.limite) out = out.slice(0, Number(p.limite));
-    return {total:out.length, ocorrencias:out};
+    return {total:totalOc, ocorrencias:out};
   }
 
   function criarIncidente(c){
