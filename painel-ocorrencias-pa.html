@@ -764,7 +764,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
     <!-- tendência -->
     <section class="painel" id="pTend">
-      <div class="painel-h"><h3>Ocorrências por dia</h3><p class="painel-sub" id="tendSub"></p></div>
+      <div class="painel-h"><h3 id="tendTit">Ocorrências por dia</h3><p class="painel-sub" id="tendSub"></p></div>
       <div class="painel-c">
         <svg class="chart" id="chTend" role="img" tabindex="0" aria-label="Incidentes abertos por dia no período filtrado"></svg>
         <details class="tabela-dados">
@@ -1469,7 +1469,31 @@ function tipOn(e, valor, chave, extra, cor, nome){
 }
 function tipOff(){ tip.style.display = "none"; }
 
+/* A granularidade acompanha o período escolhido.
+
+   Antes havia um teto fixo de 200 pontos, e o que passava disso era
+   descartado em silêncio — com o filtro em "Tudo" o gráfico mostrava de
+   dezembro a junho e deixava julho, agosto e setembro de fora, parecendo
+   completo. Agrupar é o contrário de descartar: nada sai da conta, muda
+   só o tamanho do balde, e o rótulo diz qual é.
+
+   Até 92 dias o dia é a unidade útil ("que dia foi ruim"). Acima disso a
+   pergunta vira outra — "para onde isso está indo" — e o dia só entrega
+   serrote. */
 let TEND = [];
+const BALDE = { dia: "dia", semana: "semana", mes: "mês" };
+
+function baldePara(diasNoPeriodo){
+  if (diasNoPeriodo <= 92) return BALDE.dia;
+  if (diasNoPeriodo <= 400) return BALDE.semana;
+  return BALDE.mes;
+}
+/* segunda-feira da semana de `d` — a semana começa na segunda */
+function segundaDe(d){
+  const x = new Date(d.getTime());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
 function calcTendencia(lista, f){
   const por = {};
   lista.forEach(inc => { const d = inc.inicio.slice(0,10); por[d] = (por[d]||0) + 1; });
@@ -1477,15 +1501,52 @@ function calcTendencia(lista, f){
   let ini = f.de || chaves[0], fim = f.ate || chaves[chaves.length-1];
   if (!ini || !fim) return [];
   const a = dData(ini + "T00:00"), b = dData(fim + "T00:00");
-  const dias = Math.min(200, Math.round((b - a)/86400000) + 1);
+  const dias = Math.round((b - a)/86400000) + 1;
+  const balde = baldePara(dias);
+
   const out = [];
-  for (let i = 0; i < dias; i++){
-    const d = new Date(a.getTime() + i*86400000);
-    const k = sData(d);
-    out.push({dia:k, n: por[k]||0, rot: p2(d.getDate())+"/"+p2(d.getMonth()+1)});
+  if (balde === BALDE.dia){
+    for (let i = 0; i < dias; i++){
+      const d = new Date(a.getTime() + i*86400000);
+      const k = sData(d);
+      out.push({dia:k, n: por[k]||0, rot: p2(d.getDate())+"/"+p2(d.getMonth()+1), balde:balde});
+    }
+    return out;
+  }
+
+  /* semana ou mês: soma os dias de cada balde, sem perder nenhum */
+  const inicioDe = d => balde === BALDE.semana
+    ? segundaDe(d)
+    : new Date(d.getFullYear(), d.getMonth(), 1);
+  const proximo = d => balde === BALDE.semana
+    ? new Date(d.getTime() + 7*86400000)
+    : new Date(d.getFullYear(), d.getMonth()+1, 1);
+
+  let cursor = inicioDe(a);
+  while (cursor <= b){
+    const fimBalde = proximo(cursor);
+    let n = 0;
+    for (let d = new Date(cursor.getTime()); d < fimBalde; d.setDate(d.getDate()+1)){
+      if (d < a || d > b) continue;
+      n += por[sData(d)] || 0;
+    }
+    const ate = new Date(fimBalde.getTime() - 86400000);
+    out.push({
+      dia: sData(cursor),
+      n: n,
+      rot: balde === BALDE.semana
+        ? p2(cursor.getDate())+"/"+p2(cursor.getMonth()+1)
+        : MES_CURTO[cursor.getMonth()]+"/"+String(cursor.getFullYear()).slice(2),
+      faixa: balde === BALDE.semana
+        ? p2(cursor.getDate())+"/"+p2(cursor.getMonth()+1)+" a "+p2(ate.getDate())+"/"+p2(ate.getMonth()+1)
+        : null,
+      balde: balde
+    });
+    cursor = fimBalde;
   }
   return out;
 }
+const MES_CURTO = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 function desenharTendencia(){
   const svg = $("chTend");
   const dados = TEND;
@@ -1493,7 +1554,15 @@ function desenharTendencia(){
   if (!dados.length){ $("tendSub").textContent = "Sem dados no período"; return; }
   const total = dados.reduce((s,d) => s+d.n, 0);
   const pico = dados.reduce((m,d) => d.n > m.n ? d : m, dados[0]);
-  $("tendSub").textContent = dados.length + (dados.length===1?" dia":" dias") + ", " + total + (total===1?" incidente":" incidentes") + "; pico de " + pico.n + " em " + pico.rot;
+  /* o título diz em que unidade o gráfico está falando, e o resumo conta
+     os baldes na mesma unidade — senão "43" pareceria 43 dias */
+  const balde = dados[0].balde || BALDE.dia;
+  const plural = { dia:["dia","dias"], semana:["semana","semanas"], "mês":["mês","meses"] }[balde];
+  $("tendTit").textContent = "Ocorrências por " + balde;
+  svg.setAttribute("aria-label", "Incidentes abertos por " + balde + " no período filtrado");
+  $("tendSub").textContent = dados.length + " " + plural[dados.length===1?0:1] + ", " +
+    total + (total===1?" incidente":" incidentes") + "; pico de " + pico.n +
+    (balde === BALDE.dia ? " em " : balde === BALDE.semana ? " na semana de " : " em ") + pico.rot;
 
   const larg = Math.max(300, Math.round(svg.getBoundingClientRect().width || svg.parentNode.getBoundingClientRect().width - 30));
   const H = 218, L = 34, R = 18, T = 24, B = 30;
@@ -1557,7 +1626,12 @@ function desenharTendencia(){
     const caixa = svg.getBoundingClientRect();
     const escala = caixa.width / larg;
     const falso = ev || {clientX: caixa.left + X(idx)*escala, clientY: caixa.top + Y(d.n)*escala};
-    tipOn(falso, d.n + (d.n === 1 ? " incidente" : " incidentes"), fmtDHA(d.dia + "T00:00").slice(0,10), "aberto neste dia", "var(--s1)");
+    const onde = d.balde === BALDE.semana ? "abertos na semana de " + d.faixa
+               : d.balde === BALDE.mes    ? "abertos neste mês"
+               : "aberto neste dia";
+    tipOn(falso, d.n + (d.n === 1 ? " incidente" : " incidentes"),
+      d.balde === BALDE.dia ? fmtDHA(d.dia + "T00:00").slice(0,10) : d.rot,
+      onde, "var(--s1)");
   }
   function sair(){ svg.classList.remove("ativo"); tipOff(); idx = -1; }
   captura.addEventListener("pointermove", e => {
