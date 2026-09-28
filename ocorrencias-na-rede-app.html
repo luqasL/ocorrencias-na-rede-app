@@ -308,6 +308,14 @@ input[type="datetime-local"].campo{font-family:var(--fm);font-size:13px}
   transition:color 120ms linear,text-decoration-color 120ms linear;
 }
 .bt-txt:hover{color:var(--transmite);text-decoration-color:var(--transmite)}
+/* o modo de correção precisa se anunciar: enquanto ele está ligado o
+   clique numa porta significa outra coisa, e nada seria pior do que
+   parecer igual ao fluxo de fechamento */
+.bt-txt.ativo{color:var(--transmite);text-decoration-color:var(--transmite)}
+.blade.corrigindo{border-color:var(--transmite-risco)}
+.blade.corrigindo .pon{cursor:text}
+.blade.corrigindo .pon:not(.pon-vazia){border-style:dashed}
+.blade.corrigindo .pon:not(.pon-vazia):hover{border-color:var(--transmite);color:var(--transmite)}
 .linha-bt{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 
 /* ---- enquanto fala com a planilha: um fóton atravessa o botão ---- */
@@ -2930,6 +2938,31 @@ const GLIFO_EMENDA =
   'stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>';
 
 const selDe = id => (selUnidades[id] || (selUnidades[id] = new Set()));
+
+/* ---- modo de correção ----
+   Numa unidade que ainda está fora, o clique serve para marcá-la e
+   fechar — é o fluxo principal e não pode mudar de significado. Só que
+   isso deixava sem saída quem digitou o início errado: para corrigir,
+   era preciso fechar a porta antes.
+
+   O modo de correção troca o sentido do clique enquanto está ligado, e
+   só dentro do incidente em que foi ligado. Seleção e correção não
+   convivem: ligar um limpa o outro. */
+const corrigindo = {};
+const emCorrecao = id => !!corrigindo[id];
+function btCorrigir(inc){
+  const on = emCorrecao(inc.id);
+  return el('button', {class:'bt-txt' + (on ? ' ativo' : ''), type:'button',
+    txt:on ? 'sair da correção' : 'corrigir',
+    'aria-pressed':String(on),
+    'aria-label':on ? 'Sair do modo de correção'
+                    : 'Corrigir horário ou local de uma unidade deste incidente',
+    onclick:() => {
+      corrigindo[inc.id] = !on;
+      selDe(inc.id).clear();
+      renderLista();
+    }});
+}
 const comPorta = inc => inc.escopo === 'porta' || (inc.unidades || []).some(u => u.temPorta);
 const limiteTexto = () => fmtHoras(META.limiteSuspeitoHoras);
 
@@ -2981,9 +3014,10 @@ function bladesDoIncidente(inc){
         class:'pon' + (marcada ? ' sel' : '') + marcaDeMudanca(u),
         'data-e':u.termino ? 'volta' : 'fora',
         txt:String(i),
-        'aria-label':`Slot ${slot} PON ${i}, ${u.termino ? 'restabelecida' : 'fora'}`,
+        'aria-label':`Slot ${slot} PON ${i}, ${u.termino ? 'restabelecida' : 'fora'}`
+          + (emCorrecao(inc.id) ? ', corrigir' : ''),
         onclick:() => {
-          if(u.termino){ abreEditorUnidade(inc, u); return; }
+          if(emCorrecao(inc.id) || u.termino){ abreEditorUnidade(inc, u); return; }
           const s = selDe(inc.id);
           if(s.has(u.id)) s.delete(u.id); else s.add(u.id);
           renderLista();
@@ -3010,9 +3044,10 @@ function bladesDoIncidente(inc){
               })));
           }})
         : null,
+      btCorrigir(inc),
       el('span', {class:'blade-conta', txt:`${ps.length - fora.length} de ${ps.length} restabelecidas`})
     );
-    caixa.append(el('div', {class:'blade'}, cab, grade));
+    caixa.append(el('div', {class:'blade' + (emCorrecao(inc.id) ? ' corrigindo' : '')}, cab, grade));
   });
   return caixa;
 }
@@ -3027,10 +3062,14 @@ function blocoDeLocais(inc){
     grade.append(el('button', {type:'button',
       class:'pon pon-local' + (marcado ? ' sel' : '') + marcaDeMudanca(u),
       'data-e':u.termino ? 'volta' : 'fora',
-      txt:u.local,
-      'aria-label':`${u.local}, ${u.termino ? 'restabelecido' : 'fora'}`,
+      /* local vazio vira um botão sem rótulo — é o caso dos incidentes
+         que vieram da migração sem local, e era por isso que não dava
+         nem para saber onde clicar */
+      txt:u.local || '(sem local)',
+      'aria-label':`${u.local || 'unidade sem local'}, ${u.termino ? 'restabelecido' : 'fora'}`
+        + (emCorrecao(inc.id) ? ', corrigir' : ''),
       onclick:() => {
-        if(u.termino){ abreEditorUnidade(inc, u); return; }
+        if(emCorrecao(inc.id) || u.termino){ abreEditorUnidade(inc, u); return; }
         const s = selDe(inc.id);
         if(s.has(u.id)) s.delete(u.id); else s.add(u.id);
         renderLista();
@@ -3057,9 +3096,10 @@ function blocoDeLocais(inc){
               })));
           }})
       : null,
+    btCorrigir(inc),
     el('span', {class:'blade-conta', txt:`${us.length - fora.length} de ${us.length} restabelecidos`})
   );
-  return el('div', {class:'blade'}, cab, grade);
+  return el('div', {class:'blade' + (emCorrecao(inc.id) ? ' corrigindo' : '')}, cab, grade);
 }
 
 /* ---- editor de uma unidade (porta ou local) ---- */
@@ -3067,23 +3107,43 @@ function abreEditorUnidade(inc, u){
   const cx = document.querySelector('#cx-' + inc.id);
   if(!cx) return;
   cx.querySelectorAll('.editor-unidade').forEach(x => x.remove());
-  const nome = u.slotPon || u.local;
+  const nome = u.slotPon || u.local || 'unidade sem local';
+  const aberta = !u.termino;
   const ini = el('input', {class:'campo', type:'datetime-local', value:u.inicio || ''});
   const fim = el('input', {class:'campo', type:'datetime-local', value:u.termino || ''});
+
+  /* O local mora na unidade, não no incidente — por isso o campo aparece
+     só quando o incidente é sem porta. Em incidente com porta o local é
+     um só (regra de exclusividade) e se edita no "Editar" do incidente. */
+  const trocaLocal = !comPorta(inc);
+  const local = trocaLocal ? el('select', {class:'campo'}) : null;
+  if(local){ opcoes(local, META.locais); local.value = u.local || ''; }
+
   const btSalva = el('button', {class:'bt bt-1', type:'button', txt:'Salvar'});
   const bloco = el('div', {class:'prompt editor-unidade'},
+    local ? el('div', {class:'campo-bloco'}, el('label', {txt:'Local'}), local) : null,
     el('div', {class:'campo-bloco'}, el('label', {txt:'Início de ' + nome}), ini),
-    el('div', {class:'campo-bloco'}, el('label', {txt:'Término'}), fim),
+    /* numa unidade ainda fora o término fica vazio de propósito: deixar
+       em branco mantém ela aberta, e é o caso de quem só veio consertar
+       o horário */
+    el('div', {class:'campo-bloco'},
+      el('label', {txt:aberta ? 'Término (deixe vazio para seguir fora)' : 'Término'}), fim),
     btSalva,
     el('button', {class:'bt', type:'button', txt:'Cancelar', onclick:() => bloco.remove()})
   );
   btSalva.addEventListener('click', () => {
     ini.classList.remove('errado'); fim.classList.remove('errado');
+    if(local) local.classList.remove('errado');
     if(!ini.value){ ini.classList.add('errado'); ini.focus(); return; }
     if(fim.value && fim.value < ini.value){ fim.classList.add('errado'); fim.focus(); return; }
+    if(local && !local.value){ local.classList.add('errado'); local.focus(); return; }
     acao(btSalva, async () => {
-      const r = await apiPost('editarOcorrencia', {id:u.id, inicio:ini.value, termino:fim.value || ''});
-      toast(fim.value ? 'Unidade atualizada.' : 'Unidade reaberta.', `${nome} em ${inc.id}`);
+      const dados = {id:u.id, inicio:ini.value, termino:fim.value || ''};
+      if(local && local.value !== (u.local || '')) dados.local = local.value;
+      const r = await apiPost('editarOcorrencia', dados);
+      toast(aberta && !fim.value ? 'Unidade corrigida.'
+            : fim.value ? 'Unidade atualizada.' : 'Unidade reaberta.',
+        `${dados.local || nome} em ${inc.id}`);
       aplicar(r);
     });
   });
@@ -3178,8 +3238,8 @@ function blocoEditar(inc){
     el('h3', {txt:'Editar ' + inc.id}),
     el('p', {class:'nota-solta', style:'margin:-6px 0 12px',
       txt:temPorta
-        ? 'Início e término são calculados pelas unidades. Para mudar data, clique na porta restabelecida e edite a unidade.'
-        : 'Início e término são calculados pelas unidades. Para mudar data, clique no local restabelecido e edite a unidade. Os locais entram e saem por Adicionar unidades.'}),
+        ? 'Início e término são calculados pelas unidades. Para mudar data, use "corrigir" na régua do slot. Portas novas entram por Adicionar unidades, com horário próprio.'
+        : 'Início e término são calculados pelas unidades. Para mudar data ou local, use "corrigir" na lista de locais. Os locais entram e saem por Adicionar unidades.'}),
     el('div', {class:'grade'},
       el('div', {class:'campo-bloco c6'}, el('label', {txt:'Evento'}), evento),
       local ? el('div', {class:'campo-bloco c6'}, el('label', {txt:'Local'}), local) : null,
