@@ -1423,6 +1423,25 @@ async function apiGet(action, params = {}){
   return await leResposta(r);
 }
 
+/* ------------------------------------------------------------------
+   Chave de envio
+
+   Uma gravação pode concluir na planilha e a resposta não voltar. Na
+   tela isso é idêntico a ter falhado, e o reflexo certo — mandar de
+   novo — criava um segundo registro do mesmo fato.
+
+   A chave é sorteada uma vez por formulário e NÃO muda quando o envio
+   é repetido. É justamente por não mudar que ela funciona: o backend
+   reconhece o pedido repetido e devolve o que já gravou. Ela só é
+   trocada depois de um envio que deu certo, porque aí o próximo
+   registro é outro fato.
+   ------------------------------------------------------------------ */
+function novaChaveEnvio(){
+  return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+let chaveNovo = novaChaveEnvio();
+let chaveMassa = novaChaveEnvio();
+
 async function apiPost(action, dados = {}){
   if(MODO_DEMO) return demo.chamar(action, dados);
   let r;
@@ -1475,7 +1494,10 @@ async function acao(bt, fn){
   try{
     return await fn();
   }catch(e){
-    if(e && e.rede) toast('Não deu para falar com a planilha.', 'Confira a conexão e tente de novo.', true);
+    /* Com a chave de envio, repetir deixou de ser perigoso — e dizer isso
+       importa: era o medo de duplicar que fazia a pessoa parar e conferir
+       na planilha no meio de uma ocorrência. */
+    if(e && e.rede) toast('Não deu para falar com a planilha.', 'Pode tentar de novo: o reenvio não duplica.', true);
     else toast(String(e && e.message ? e.message : e), null, true);
     return null;
   }finally{
@@ -2108,14 +2130,36 @@ const demo = (function(){
     throw new Error('Operação inválida: ' + op);
   }
 
+  /* ---------------- chave de envio (espelha o Codigo.gs) ---------------- */
+  const enviosFeitos = {};
+  function comChaveDeEnvio(c, gravar){
+    const chave = String((c && c.chaveEnvio) || '').trim();
+    if(!chave) return gravar();
+    const g = enviosFeitos[chave];
+    if(g){
+      const incs = g.ids.map(id => { try{ return detalhe(id); }catch(e){ return null; } })
+                        .filter(d => d && d.situacao !== 'excluido');
+      if(incs.length){
+        if(g.lote) return {criados:incs.length, incidentes:incs, repetido:true};
+        return Object.assign({}, incs[0], {repetido:true});
+      }
+    }
+    const saida = gravar();
+    const ids = saida && saida.incidentes ? saida.incidentes.map(x => x.id)
+              : (saida && saida.id ? [saida.id] : []);
+    if(ids.length) enviosFeitos[chave] = {ids, lote:!!(saida && saida.incidentes)};
+    return saida;
+  }
+
   /* ---------------- despachante: mesma assinatura das duas rotas ---------------- */
   const ACOES = {
     meta:meta,
     incidentes:listarIncidentes,
     incidente:p => detalhe(p.id),
     ocorrencias:listarOcorrencias,
-    criarIncidente:criarIncidente,
-    criarIncidentesLote:criarIncidentesLote,
+    /* mesma chave de envio do backend real, para o demo não divergir */
+    criarIncidente:c => comChaveDeEnvio(c, () => criarIncidente(c)),
+    criarIncidentesLote:c => comChaveDeEnvio(c, () => criarIncidentesLote(c)),
     adicionarUnidades:adicionarUnidades,
     fecharUnidades:fecharUnidades,
     fecharIncidente:fecharIncidente,
@@ -2648,6 +2692,7 @@ $('#f-novo').addEventListener('submit', e => {
 
   acao($('#n-envia'), async () => {
     const d = soIncidente(await apiPost('criarIncidente', {
+      chaveEnvio:chaveNovo,
       evento:evento,
       locais:locaisNovo.slice(),
       portas:temPorta ? ['SLOT ' + Number(slot) + ' PON ' + Number(pon)] : [],
@@ -2658,10 +2703,14 @@ $('#f-novo').addEventListener('submit', e => {
       fonte:$('#n-fonte').value
     }));
     const quantos = d.qtdLocais;
-    toast('Ocorrência registrada.',
-      temPorta
+    /* `repetido` vem quando este mesmo envio já tinha gravado e a
+       resposta se perdeu. Não é um registro novo, e dizer que é seria
+       mentira — ainda mais para quem está conferindo se duplicou. */
+    toast(d.repetido ? 'Este registro já estava gravado.' : 'Ocorrência registrada.',
+      (d.repetido ? 'Nada foi duplicado. ' : '') + (temPorta
         ? `${d.id}, ${d.evento} em ${d.locaisTexto}, SLOT ${p2(slot)} PON ${p2(pon)}`
-        : `${d.id}, ${d.evento} em ${quantos === 1 ? d.locaisTexto : quantos + ' locais'}`);
+        : `${d.id}, ${d.evento} em ${quantos === 1 ? d.locaisTexto : quantos + ' locais'}`));
+    chaveNovo = novaChaveEnvio();        /* deu certo: o próximo é outro fato */
     limpaNovo();
     aplicar(d);
   });
@@ -2823,10 +2872,12 @@ $('#fila-envia').addEventListener('click', () => {
       inicio:it.inicio, termino:it.termino || '',
       observacao:it.obs, horarioInformacao:it.horaInfo || '', fonte:it.fonte
     }));
-    const r = await apiPost('criarIncidentesLote', {itens:itens, incidenteUnico:unico});
+    const r = await apiPost('criarIncidentesLote',
+      {chaveEnvio:chaveMassa, itens:itens, incidenteUnico:unico});
     const n = r.criados;
     fila = []; salvaFila(); renderFila();
-    toast('Fila enviada.', unico
+    chaveMassa = novaChaveEnvio();       /* deu certo: a próxima fila é outra */
+    toast(r.repetido ? 'Esta fila já estava gravada.' : 'Fila enviada.', unico
       ? (u => `Um incidente só: ${r.incidentes[0].id}, com ${u} ${u === 1 ? 'unidade' : 'unidades'}`)
           (r.incidentes[0].unidades.length)
       : `${n} ${n === 1 ? 'incidente' : 'incidentes'}`);
