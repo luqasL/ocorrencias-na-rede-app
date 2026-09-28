@@ -5,7 +5,9 @@ planilha **Ocorrências PA** sem precisar digitar célula por célula. É um
 site simples (HTML) que conversa com um script publicado na própria
 planilha (Google Apps Script).
 
-**Link do site:** https://luqasl.github.io/ocorrencias-na-rede-app/ocorrencias-na-rede-app.html
+**Link do Registrador:** https://luqasl.github.io/ocorrencias-na-rede-app/ocorrencias-na-rede-app.html
+
+**Link do Painel:** https://luqasl.github.io/ocorrencias-na-rede-app/painel-ocorrencias-pa.html
 
 > ⚠️ Esse link e a senha de acesso não devem ser compartilhados — veja
 > [Segurança](#segurança) mais abaixo.
