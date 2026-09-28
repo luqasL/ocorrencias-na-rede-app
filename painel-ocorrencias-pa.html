@@ -1296,7 +1296,7 @@ function desenharKpis(lista, f, abertos){
   const dT = $("kTotalD"); dT.className = "d"; dT.replaceChildren();
   if (ant.length){
     const dif = lista.length - ant.length;
-    dT.classList.add(dif > 0 ? "pior" : dif < 0 ? "melhor" : "");
+    if (dif !== 0) dT.classList.add(dif > 0 ? "pior" : "melhor");
     if (dif !== 0) dT.innerHTML = SETA[dif > 0 ? "sobe" : "desce"];
     dT.appendChild(el("span", null, (dif > 0 ? "+" : "") + dif + " contra os " + dias + " dias anteriores"));
   } else {
@@ -1308,7 +1308,7 @@ function desenharKpis(lista, f, abertos){
     const m0 = Math.round(antF.reduce((s,i)=>s+i.duracaoMin,0)/antF.length);
     const m1 = Math.round(soma/fechados.length);
     const dif = m1 - m0;
-    dM.classList.add(dif > 0 ? "pior" : dif < 0 ? "melhor" : "");
+    if (dif !== 0) dM.classList.add(dif > 0 ? "pior" : "melhor");
     if (dif !== 0) dM.innerHTML = SETA[dif > 0 ? "sobe" : "desce"];
     dM.appendChild(el("span", null, (dif > 0 ? "+" : "-") + fmtDur(Math.abs(dif)) + " contra o período anterior"));
   } else {
@@ -2009,6 +2009,8 @@ const VELHO_MS = 180000;        /* a partir daqui o dado é anunciado como velho
 let ultimoErro = null;
 let sincronizando = false;
 let periodoPendente = false;    /* chegou dado novo com a tabela em uso */
+let emCurso = null;             /* Promise da sincronização em voo, ou null */
+let naFila = false;             /* um pedido seu espera a vez */
 
 function marcarSelo(){
   const s = $("stamp");
@@ -2098,9 +2100,31 @@ function mostrarEstado(){
   if (document.body.classList.contains("apres")) desenharApres();
 }
 
-/* ---------- as buscas ---------- */
-async function sincronizar(silencioso, oQue){
-  if (sincronizando) return;
+/* ---------- as buscas ----------
+
+   Tique automático pode ser descartado quando já existe uma sincronização
+   em voo: perder um tique de 60s não custa nada. Pedido seu, nunca — ele
+   espera a vez e roda em seguida.
+
+   Era exatamente aqui que o clique em "Tudo" se perdia: a busca era
+   descartada em silêncio, o `garantirJanela` redesenhava achando que
+   tinha buscado, e o painel ficava com o filtro novo e a janela antiga,
+   sem nada para reconciliar os dois. */
+function sincronizar(silencioso, oQue){
+  if (emCurso){
+    if (silencioso) return emCurso;
+    naFila = true;
+    return emCurso.then(() => naFila ? sincronizar(false, oQue) : null);
+  }
+  naFila = false;
+  emCurso = (async () => {
+    try { await rodarSincronizacao(silencioso, oQue); }
+    finally { emCurso = null; }
+  })();
+  return emCurso;
+}
+
+async function rodarSincronizacao(silencioso, oQue){
   sincronizando = true;
   const b = $("btnAtualizar");
   if (!silencioso){ b.classList.add("girando"); b.disabled = true; }
@@ -2108,8 +2132,15 @@ async function sincronizar(silencioso, oQue){
   try {
     const alvo = janelaNecessaria();
     const querPeriodo = oQue !== "abertos" || !janelaCobre(alvo);
-    await buscarAbertos();
-    if (querPeriodo) await buscarPeriodo(janelaCobre(alvo) ? JANELA : alvo);
+    /* As consultas são independentes — esperar uma para começar a outra
+       multiplicava a espera sem precisar. No primeiro carregamento o
+       cadastro entra no mesmo lote: são três idas à planilha que podem
+       sair juntas, e era esperando uma pela outra que o boot demorava o
+       triplo do necessário. */
+    const tarefas = [buscarAbertos()];
+    if (!EVENTOS.length) tarefas.push(buscarMeta());
+    if (querPeriodo) tarefas.push(buscarPeriodo(janelaCobre(alvo) ? JANELA : alvo));
+    await Promise.all(tarefas);
 
     SELO = sDataHora(agora());
     ultimoErro = null;
@@ -2498,23 +2529,11 @@ addEventListener("keydown", e => {
   $("hDe").value = sData(de30); $("hAte").value = sData(hoje);
   marcarSelo();
 
-  /* O cadastro vem primeiro: sem ele os selects ficam vazios e a paleta
-     não tem em que se apoiar. Só depois os incidentes. */
-  (async () => {
-    sincronizando = true; mostrarEstado();
-    try {
-      await buscarMeta();
-    } catch (e){
-      sincronizando = false;
-      ultimoErro = e && e.rede
-        ? "Não deu para falar com a planilha."
-        : String((e && e.message) || "A planilha recusou a consulta.");
-      mostrarEstado();
-      return;
-    }
-    sincronizando = false;
-    await sincronizar(false);
-  })();
+  /* O cadastro sai no mesmo lote da primeira busca — a própria
+     sincronização cuida disso enquanto a lista de eventos estiver vazia.
+     Se ela falhar, o aviso traz "Tentar de novo" e a tentativa seguinte
+     busca o cadastro outra vez. */
+  sincronizar(false);
 
   let rz;
   addEventListener("resize", () => {
