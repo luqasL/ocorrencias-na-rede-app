@@ -985,6 +985,13 @@ class ErroDeRede extends Error {
   constructor(msg){ super(msg); this.rede = true; }
 }
 
+/* Sem limite de espera, uma planilha que não responde — nem com dado, nem
+   com erro — pendura o `await` para sempre. O `finally` que reabilita o
+   botão Atualizar nunca roda, e o painel fica girando sem fim, sem nada
+   que o traga de volta. Um minuto é folgado: a consulta mais pesada que
+   existe aqui é o "Tudo", e ela não chega perto disso. */
+const ESPERA_MS = 60000;
+
 async function apiGet(action, params){
   const u = new URL(CFG.URL);
   u.searchParams.set("action", action);
@@ -994,12 +1001,27 @@ async function apiGet(action, params){
     if (v === undefined || v === null || v === "") continue;
     u.searchParams.set(k, v);
   }
+  const ctrl = new AbortController();
+  const relogio = setTimeout(() => ctrl.abort(), ESPERA_MS);
+  try {
+    return await buscarDados(u, ctrl);
+  } finally {
+    clearTimeout(relogio);
+  }
+}
+
+async function buscarDados(u, ctrl){
+  const demorou = () => ctrl.signal.aborted;
   let r;
-  try { r = await fetch(u.toString(), { method: "GET" }); }
-  catch (e){ throw new ErroDeRede("Não deu para falar com a planilha."); }
+  try { r = await fetch(u.toString(), { method: "GET", signal: ctrl.signal }); }
+  catch (e){ throw new ErroDeRede(demorou()
+    ? "A planilha demorou demais para responder."
+    : "Não deu para falar com a planilha."); }
   let texto;
   try { texto = await r.text(); }
-  catch (e){ throw new ErroDeRede("A resposta da planilha veio pela metade."); }
+  catch (e){ throw new ErroDeRede(demorou()
+    ? "A planilha demorou demais para responder."
+    : "A resposta da planilha veio pela metade."); }
   let j;
   try { j = JSON.parse(texto); }
   catch (e){
@@ -2231,9 +2253,10 @@ async function rodarSincronizacao(silencioso, oQue){
     }
     if (document.body.classList.contains("apres")) desenharApres();
   } catch (e){
-    ultimoErro = e && e.rede
-      ? "Não deu para falar com a planilha."
-      : String((e && e.message) || "A planilha recusou a consulta.");
+    /* cada ErroDeRede já traz o texto certo — demorou demais, veio pela
+       metade, respondeu algo que não é dado. Reescrever tudo como "não
+       deu para falar" apagava justamente o que ajuda a achar a causa. */
+    ultimoErro = String((e && e.message) || "A planilha recusou a consulta.");
   } finally {
     sincronizando = false;
     b.classList.remove("girando"); b.disabled = false;
