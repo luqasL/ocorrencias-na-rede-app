@@ -197,6 +197,10 @@ h2{margin:0 0 4px;font-size:16px;font-weight:700;letter-spacing:-.014em}
 .painel-cab .nota{margin-bottom:0}
 .painel-cab + .grade,.painel-cab + form,.painel-cab + .filtros{margin-top:18px}
 .nota-solta{font-size:12.5px;color:var(--luz-3);margin:0;line-height:1.5}
+/* mesmo rodapé de paginação do painel */
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:11px 2px;border-top:1px solid var(--borda);margin-top:14px}
+.pager b{color:var(--luz-1);font-family:var(--fm);font-variant-numeric:tabular-nums}
 .divisor{
   height:1px;border:0;margin:20px 0;
   background:linear-gradient(90deg,var(--borda),rgba(28,48,62,.15));
@@ -1250,8 +1254,14 @@ input[type="datetime-local"].campo{font-family:var(--fm);font-size:13px}
             <label class="caixa"><input type="checkbox" id="h-rev"> Só os que precisam de revisão</label>
           </div>
         </div>
-        <p class="nota-solta" id="h-corte" hidden></p>
         <div id="h-lista"></div>
+        <div class="pager" id="h-pager" hidden>
+          <span class="nota-solta" id="h-pg"></span>
+          <div class="linha-bt">
+            <button class="bt bt-s" id="h-prev" type="button">Anterior</button>
+            <button class="bt bt-s" id="h-next" type="button">Próxima</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -2901,7 +2911,7 @@ const LIMITE_FECHADOS = 50;
 let abertos = [], fechados = [];
 let filtroAbertos = {local:'', de:'', ate:''};
 let filtroFechados = {local:'', evento:'', de:'', ate:'', rev:false};
-let buscaFeita = false, corteFechados = false;
+let buscaFeita = false, pgFechados = 1;
 
 const expandidos = new Set();
 const selUnidades = {};                 /* idIncidente -> Set(id de ocorrência) */
@@ -3515,8 +3525,12 @@ async function carregarFechados(mostraCarga){
     alvo.append(el('div', {class:'carregando', txt:'Buscando…'}));
   }
   const f = filtroFechados;
+  /* Sem `limite`: a busca traz o conjunto filtrado inteiro e a tela pagina,
+     igual ao painel. Cortar no servidor obrigaria uma ida à planilha por
+     página, e cada ida lê a base toda — catorze leituras completas para
+     ver 683 fechados. Aqui é uma só. */
   const d = await acao(null, () => apiGet('incidentes', {
-    situacao:'fechado', comUnidades:'sim', limite:LIMITE_FECHADOS,
+    situacao:'fechado', comUnidades:'sim',
     local:f.local, evento:f.evento, de:f.de, ate:f.ate,
     precisaRevisao:f.rev ? 'sim' : ''
   }));
@@ -3526,29 +3540,49 @@ async function carregarFechados(mostraCarga){
     return false;
   }
   fechados = d.incidentes || [];
-  corteFechados = fechados.length >= LIMITE_FECHADOS;
+  pgFechados = 1;
   renderFechados();
   return true;
 }
 
 function renderFechados(){
-  const alvo = $('#h-lista'), corte = $('#h-corte');
+  const alvo = $('#h-lista'), pager = $('#h-pager');
   alvo.innerHTML = '';
   if(!buscaFeita){
-    corte.hidden = true;
+    pager.hidden = true;
     alvo.append(el('div', {class:'vazio', txt:'Escolha os filtros e busque.'}));
     return;
   }
-  corte.hidden = !corteFechados;
-  if(corteFechados){
-    corte.textContent = `Exibindo os ${LIMITE_FECHADOS} mais recentes. Refine os filtros para ver o resto.`;
-  }
   if(!fechados.length){
+    pager.hidden = true;
     alvo.append(el('div', {class:'vazio', txt:'Nenhum incidente fechado com esses filtros.'}));
     return;
   }
-  fechados.forEach(inc => alvo.append(cartao(inc, 'fechados')));
+
+  const paginas = Math.max(1, Math.ceil(fechados.length / LIMITE_FECHADOS));
+  pgFechados = Math.min(Math.max(1, pgFechados), paginas);
+  const fatia = fechados.slice((pgFechados-1)*LIMITE_FECHADOS, pgFechados*LIMITE_FECHADOS);
+  fatia.forEach(inc => alvo.append(cartao(inc, 'fechados')));
+
+  pager.hidden = false;
+  const pg = $('#h-pg');
+  pg.replaceChildren();
+  pg.append(el('span', {txt:'Página '}), el('b', {txt:String(pgFechados)}),
+    el('span', {txt:' de '}), el('b', {txt:String(paginas)}),
+    el('span', {txt:'  ·  ' + fechados.length
+      + (fechados.length === 1 ? ' incidente' : ' incidentes')
+      + ', ' + LIMITE_FECHADOS + ' por página'}));
+  $('#h-prev').disabled = pgFechados <= 1;
+  $('#h-next').disabled = pgFechados >= paginas;
 }
+
+function viraPagina(passo){
+  pgFechados += passo;
+  renderFechados();
+  $('#h-lista').scrollIntoView({block:'start', behavior:'smooth'});
+}
+$('#h-prev').addEventListener('click', () => viraPagina(-1));
+$('#h-next').addEventListener('click', () => viraPagina(1));
 
 function renderLista(){
   renderAbertos();
