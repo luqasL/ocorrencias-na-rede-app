@@ -174,6 +174,32 @@ select:hover,input[type=date]:hover{border-color:var(--ink-3);}
 .painel-h h3{font-size:14.5px;font-weight:600;letter-spacing:-.008em;}
 .painel-sub{font-size:12.5px;color:var(--ink-3);}
 .painel-c{padding:14px 15px 16px;}
+/* o sub ocupa o meio e empurra o botão para a direita */
+.painel-h .painel-sub{margin-right:auto;}
+
+/* ---------- relatório completo ----------
+   A lista paginada serve para olhar; esta serve para levar embora. Por
+   isso ela não pagina, já vem expandida e só existe enquanto está
+   aberta — montar 685 incidentes expandidos o tempo todo custaria caro
+   numa tela que fica horas no ar. */
+#relat{position:fixed;inset:0;z-index:70;background:var(--plane);display:none;
+  flex-direction:column;}
+#relat.on{display:flex;}
+.rel-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;border-bottom:1px solid var(--hair);background:var(--surface);}
+.rel-tit b{font-size:15px;font-weight:650;letter-spacing:-.01em;}
+.rel-tit .q{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px;}
+.rel-acts{display:flex;gap:8px;flex-wrap:wrap;}
+.rel-corpo{flex:1;overflow:auto;padding:16px 18px 40px;}
+.rel-item{border:1px solid var(--hair);border-radius:var(--r);margin-bottom:14px;
+  background:var(--surface);break-inside:avoid;}
+.rel-cab{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding:10px 14px;border-bottom:1px solid var(--hair);}
+.rel-cab .rid{font-family:var(--mono);font-size:12px;color:var(--ink-3);}
+.rel-cab .rev{font-weight:650;font-size:13.5px;}
+.rel-cab .rloc{font-size:12.5px;color:var(--ink-2);margin-right:auto;}
+.rel-item .det-box{border:0;}
+.rel-vazio{padding:30px;text-align:center;color:var(--ink-3);}
 .vazio{color:var(--ink-3);font-size:13.5px;padding:22px 14px;text-align:center;
   border:1px dashed var(--hair-2);border-radius:var(--r);}
 
@@ -585,6 +611,14 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
   .bezel{position:static;border-bottom:1px solid #000;}
   .abas,.bz-acts,.filtro,.presets,.pager .ctrl,.detalhes,.tabela-dados,#apres,.ap-sair,.chip-f button{display:none !important;}
   .ativos{display:none !important;}
+  .btn-rel{display:none !important;}
+  /* com o relatório aberto, o papel é dele: o painel inteiro sai de cena */
+  body.relatando > main,body.relatando > .bezel{display:none !important;}
+  body.relatando #relat{position:static;display:block !important;}
+  body.relatando .rel-acts{display:none !important;}
+  body.relatando .rel-corpo{overflow:visible;padding:0;}
+  body.relatando .rel-top{border-bottom:1px solid #000;padding:0 0 8px;margin-bottom:10px;}
+  .rel-item{break-inside:avoid;border-color:#999;}
   main{padding:0;max-width:none;}
   .impr{display:block !important;}
   .painel,.quadro,.kpis,.card{break-inside:avoid;border-color:#999;}
@@ -776,7 +810,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
     <!-- tabela -->
     <section class="painel">
-      <div class="painel-h"><h3>Incidentes no período</h3><p class="painel-sub" id="gTabSub"></p></div>
+      <div class="painel-h"><h3>Incidentes no período</h3><p class="painel-sub" id="gTabSub"></p><button class="btn btn-sm btn-rel" id="gRel" type="button">Relatório completo</button></div>
       <div class="tab-wrap">
         <table class="t-inc">
           <thead><tr><th style="width:30px"><span class="sr">Abrir detalhe</span></th><th>ID</th><th>Evento</th><th>Local(is)</th><th>Início</th><th>Duração</th><th>Portas</th><th>Situação</th></tr></thead>
@@ -823,7 +857,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
     </div>
     <div class="ativos" id="hAtivos"></div>
     <section class="painel">
-      <div class="painel-h"><h3>Todos os incidentes</h3><p class="painel-sub" id="hTabSub"></p></div>
+      <div class="painel-h"><h3>Todos os incidentes</h3><p class="painel-sub" id="hTabSub"></p><button class="btn btn-sm btn-rel" id="hRel" type="button">Relatório completo</button></div>
       <div class="tab-wrap">
         <table class="t-inc">
           <thead><tr><th style="width:30px"><span class="sr">Abrir detalhe</span></th><th>ID</th><th>Evento</th><th>Local(is)</th><th>Início</th><th>Duração</th><th>Portas</th><th>Situação</th></tr></thead>
@@ -837,6 +871,19 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
     </section>
   </section>
 </main>
+
+<!-- ===================== RELATÓRIO COMPLETO ===================== -->
+<div id="relat" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Relatório completo">
+  <div class="rel-top">
+    <div class="rel-tit"><b id="relTit">Relatório</b><span class="q" id="relFiltro"></span></div>
+    <div class="rel-acts">
+      <button class="btn" id="relXls" type="button">Exportar planilha</button>
+      <button class="btn" id="relPdf" type="button">Exportar PDF</button>
+      <button class="btn" id="relSair" type="button">Fechar</button>
+    </div>
+  </div>
+  <div class="rel-corpo" id="relCorpo"></div>
+</div>
 
 <!-- ===================== MODO APRESENTAÇÃO ===================== -->
 <div id="apres" aria-hidden="true">
@@ -2302,6 +2349,242 @@ async function garantirJanela(redesenhar){
 $("btnAtualizar").addEventListener("click", () => sincronizar(false));
 $("btnPdf").addEventListener("click", () => window.print());
 
+
+/* ==================================================================
+   Planilha .xlsx sem biblioteca
+
+   Um .xlsx é um ZIP com alguns XML dentro. Escrever isso à mão dá mais
+   linhas do que carregar uma biblioteca de fora, mas mantém o painel
+   sendo um arquivo só: sem isso, exportar passaria a depender de um
+   servidor de terceiros estar no ar justamente na hora do relatório.
+
+   As entradas do ZIP vão sem compressão (método 0). Custa mais bytes e
+   dispensa o compressor inteiro — para 1.500 linhas de texto, é troca
+   boa.
+   ================================================================== */
+const CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++){
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipar(arquivos){
+  const cod = new TextEncoder();
+  const partes = [], central = [];
+  let desloc = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255];
+  const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+
+  arquivos.forEach(a => {
+    const nome = cod.encode(a.nome);
+    const dado = cod.encode(a.texto);
+    const soma = crc32(dado);
+    const cab = [].concat([0x50,0x4B,0x03,0x04], u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(soma), u32(dado.length), u32(dado.length),
+      u16(nome.length), u16(0));
+    partes.push(new Uint8Array(cab), nome, dado);
+    central.push([].concat([0x50,0x4B,0x01,0x02], u16(20), u16(20), u16(0), u16(0),
+      u16(0), u16(0), u32(soma), u32(dado.length), u32(dado.length),
+      u16(nome.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(desloc))
+      .concat(Array.from(nome)));
+    desloc += cab.length + nome.length + dado.length;
+  });
+
+  const dir = [].concat.apply([], central);
+  const fim = [].concat([0x50,0x4B,0x05,0x06], u16(0), u16(0),
+    u16(arquivos.length), u16(arquivos.length), u32(dir.length), u32(desloc), u16(0));
+  partes.push(new Uint8Array(dir), new Uint8Array(fim));
+
+  let total = 0; partes.forEach(p => total += p.length);
+  const saida = new Uint8Array(total);
+  let i = 0; partes.forEach(p => { saida.set(p, i); i += p.length; });
+  return saida;
+}
+
+const escXml = v => String(v == null ? "" : v)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");
+const colLetra = n => { let s = ""; n++; while (n > 0){ const r = (n-1) % 26; s = String.fromCharCode(65+r) + s; n = (n-1-r)/26; } return s; };
+
+/* `linhas` é uma matriz; números viram número de verdade na célula, o
+   resto vira texto embutido (sem tabela de strings compartilhadas) */
+function planilhaXlsx(nomeAba, linhas){
+  const xmlLinhas = linhas.map((linha, i) => {
+    const celulas = linha.map((v, j) => {
+      const ref = colLetra(j) + (i + 1);
+      if (typeof v === "number" && isFinite(v)) return '<c r="'+ref+'"><v>'+v+'</v></c>';
+      return '<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+escXml(v)+'</t></is></c>';
+    }).join("");
+    return '<row r="'+(i+1)+'">'+celulas+'</row>';
+  }).join("");
+
+  const larguras = (linhas[0] || []).map((_, j) =>
+    '<col min="'+(j+1)+'" max="'+(j+1)+'" width="'+larguraColuna(linhas, j)+'" customWidth="1"/>').join("");
+
+  return zipar([
+    { nome:"[Content_Types].xml", texto:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '</Types>' },
+    { nome:"_rels/.rels", texto:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+      '</Relationships>' },
+    { nome:"xl/workbook.xml", texto:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '+
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+      '<sheets><sheet name="'+escXml(nomeAba)+'" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { nome:"xl/_rels/workbook.xml.rels", texto:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
+      '</Relationships>' },
+    { nome:"xl/worksheets/sheet1.xml", texto:
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'+
+      (larguras ? '<cols>'+larguras+'</cols>' : '')+
+      '<sheetData>'+xmlLinhas+'</sheetData>'+
+      '<autoFilter ref="A1:'+colLetra((linhas[0]||[]).length-1)+linhas.length+'"/>'+
+      '</worksheet>' }
+  ]);
+}
+function larguraColuna(linhas, j){
+  let m = 8;
+  for (let i = 0; i < linhas.length && i < 200; i++){
+    const v = linhas[i][j];
+    const n = String(v == null ? "" : v).length;
+    if (n > m) m = n;
+  }
+  return Math.min(46, m + 2);
+}
+
+/* ==================================================================
+   Relatório completo
+
+   A tabela da tela pagina porque ninguém lê 685 incidentes de uma vez.
+   O relatório é o contrário: existe para sair da tela — vai inteiro,
+   já expandido, obedecendo os mesmos filtros que estão valendo.
+
+   Em PDF sai com a cara do detalhe expandido, que é como a informação
+   foi desenhada para ser lida. Em planilha sai uma linha por unidade,
+   que é o nível onde Slot/PON, início e término de cada porta existem —
+   é assim que dá para filtrar e somar depois.
+   ================================================================== */
+let RELAT = { lista: [], titulo: "", filtro: "" };
+
+function abrirRelatorio(prefixo){
+  const f = lerFiltro(prefixo);
+  const lista = aplicar(f);
+  RELAT = {
+    lista: lista,
+    titulo: prefixo === "h" ? "Histórico geral" : "Visão geral",
+    filtro: textoFiltro(f)
+  };
+  $("relTit").textContent = "Relatório — " + RELAT.titulo;
+  $("relFiltro").textContent = lista.length +
+    (lista.length === 1 ? " incidente" : " incidentes") + " · " + RELAT.filtro;
+
+  const corpo = $("relCorpo");
+  corpo.replaceChildren();
+  if (!lista.length){
+    corpo.appendChild(el("div","rel-vazio","Nenhum incidente com esses filtros."));
+  } else {
+    lista.forEach(inc => {
+      const item = el("div","rel-item");
+      const cab = el("div","rel-cab");
+      cab.appendChild(el("span","rid", inc.id));
+      cab.appendChild(el("span","rev", inc.evento));
+      cab.appendChild(el("span","rloc", inc.locaisTexto));
+      cab.appendChild(el("span","rid", fmtDHA(inc.inicio)));
+      item.appendChild(cab);
+      item.appendChild(detalhe(inc));    /* a mesma peça da linha expandida */
+      corpo.appendChild(item);
+    });
+  }
+  $("relat").classList.add("on");
+  $("relat").setAttribute("aria-hidden","false");
+  document.body.classList.add("relatando");
+  $("relSair").focus();
+}
+
+function fecharRelatorio(){
+  $("relat").classList.remove("on");
+  $("relat").setAttribute("aria-hidden","true");
+  document.body.classList.remove("relatando");
+  $("relCorpo").replaceChildren();      /* não deixa 685 blocos na memória */
+}
+
+$("gRel").addEventListener("click", () => abrirRelatorio("g"));
+$("hRel").addEventListener("click", () => abrirRelatorio("h"));
+$("relSair").addEventListener("click", fecharRelatorio);
+$("relPdf").addEventListener("click", () => window.print());
+$("relXls").addEventListener("click", () => baixarPlanilha(RELAT));
+
+/* Uma linha por unidade: é o nível onde Slot/PON, início e término de
+   cada porta existem. Os dados do incidente se repetem em cada linha,
+   de propósito — é o que permite filtrar e somar no Excel sem ter que
+   procurar o incidente em outra aba. */
+const COLUNAS_RELATORIO = [
+  ["Incidente",            i => i.id],
+  ["Evento",               i => i.evento],
+  ["Situação do incidente", i => i.situacao === "aberto" ? "Aberto" : "Fechado"],
+  ["Local",                (i,u) => u ? u.local : i.locaisTexto],
+  ["Slot / PON",           (i,u) => u && u.slotPon ? u.slotPon : ""],
+  ["Início da unidade",    (i,u) => fmtDHA(u ? u.inicio : i.inicio)],
+  ["Término da unidade",   (i,u) => (u ? u.termino : i.termino) ? fmtDHA(u ? u.termino : i.termino) : ""],
+  ["Duração (min)",        (i,u) => { const d = u ? u.duracaoMin : i.duracaoMin; return (d === null || d === "" || d === undefined) ? "" : Number(d); }],
+  ["Situação da unidade",  (i,u) => u ? (u.situacao === "aberto" ? "Aberto" : "Fechado") : ""],
+  ["Início do incidente",  i => fmtDHA(i.inicio)],
+  ["Término do incidente", i => i.termino ? fmtDHA(i.termino) : ""],
+  ["Duração do incidente (min)", i => i.duracaoMin === null || i.duracaoMin === "" ? "" : Number(i.duracaoMin)],
+  ["Portas",               i => i.escopo === "porta" ? i.qtdRestabelecidas + "/" + i.qtdPortas : ""],
+  ["Locais do incidente",  i => i.locaisTexto],
+  ["Observação",           i => i.observacao || ""],
+  ["Horário da informação", i => i.horarioInformacao ? fmtDHA(i.horarioInformacao) : ""],
+  ["Fonte",                i => i.fonte || ""],
+  ["Suspeito",             i => i.suspeito ? "sim" : "não"],
+  ["Justificativa",        i => i.justificativa || ""]
+];
+
+function linhasDoRelatorio(lista){
+  const linhas = [COLUNAS_RELATORIO.map(c => c[0])];
+  lista.forEach(inc => {
+    const unidades = (inc.unidades && inc.unidades.length) ? inc.unidades : [null];
+    unidades.forEach(u => linhas.push(COLUNAS_RELATORIO.map(c => c[1](inc, u))));
+  });
+  return linhas;
+}
+
+function baixarPlanilha(rel){
+  if (!rel.lista.length){ alert("Não há incidentes para exportar com esses filtros."); return; }
+  const linhas = linhasDoRelatorio(rel.lista);
+  const bytes = planilhaXlsx("Ocorrências", linhas);
+  const nome = "ocorrencias-" + sData(agora()) + ".xlsx";
+  const url = URL.createObjectURL(new Blob([bytes],
+    { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.body.classList.contains("relatando")) fecharRelatorio();
+});
+
 setInterval(() => {
   if (document.hidden || !SELO) return;
   sincronizar(true, "abertos");
@@ -2315,12 +2598,25 @@ setInterval(() => {
 /* o aviso de "dado velho" precisa aparecer sozinho, sem esperar busca */
 setInterval(() => { if (!document.hidden) mostrarEstado(); }, 30000);
 
-function atualizarCabImpressao(f){
+/* a descrição do filtro em palavras — usada no cabeçalho de impressão,
+   na apresentação e no relatório */
+function partesDoFiltro(f){
   const partes = [];
   if (f.ev) partes.push("evento " + f.ev);
   if (f.loc) partes.push("local " + f.loc);
+  if (f.slot) partes.push("slot " + f.slot);
+  if (f.pon) partes.push("PON " + f.pon);
   if (f.de || f.ate) partes.push("período de " + (f.de ? fmtDHA(f.de+"T00:00").slice(0,10) : "início") +
     " a " + (f.ate ? fmtDHA(f.ate+"T00:00").slice(0,10) : "hoje"));
+  return partes;
+}
+function textoFiltro(f){
+  const p = partesDoFiltro(f);
+  return p.length ? p.join(", ") : "sem filtro";
+}
+
+function atualizarCabImpressao(f){
+  const partes = partesDoFiltro(f);
   const c = $("imprCab"); c.replaceChildren();
   c.appendChild(el("b", null, "Painel de ocorrências na rede"));
   c.appendChild(el("div", null, partes.length ? "Filtro: " + partes.join("; ") : "Sem filtro aplicado"));
