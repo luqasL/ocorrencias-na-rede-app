@@ -2906,7 +2906,7 @@ $('#fila-envia').addEventListener('click', () => {
 /* ==================================================================
    gerenciar incidentes
    ================================================================== */
-const LIMITE_FECHADOS = 50;
+const LIMITE_FECHADOS = 15;   /* cartões por página */
 
 let abertos = [], fechados = [];
 let filtroAbertos = {local:'', de:'', ate:''};
