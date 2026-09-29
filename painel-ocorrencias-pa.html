@@ -100,6 +100,8 @@ h1,h2,h3,h4,p{margin:0;}
 .mark .who{font-size:12px;color:var(--bezel-ink-2);line-height:1.15;}
 .stamp{font-size:12.5px;color:var(--bezel-ink-2);white-space:nowrap;line-height:1.2;}
 .stamp b{display:block;color:var(--bezel-ink);font-weight:600;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;}
+.stamp i{display:block;font-style:normal;font-size:11.5px;color:var(--bezel-ink-2);opacity:.85;}
+.stamp i.velho{color:var(--fora);opacity:1;font-weight:600;}
 .bz-acts{display:flex;gap:7px;flex-wrap:wrap;}
 
 .btn{display:inline-flex;align-items:center;gap:7px;border-radius:var(--r);cursor:pointer;
@@ -692,7 +694,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
         <div class="who">NOC — leitura e análise. O registro é feito no registrador.</div>
       </div>
     </div>
-    <div class="stamp">dados de<b id="stamp">—</b></div>
+    <div class="stamp">dados de<b id="stamp">—</b><i id="stampIdade"></i></div>
     <div class="bz-acts">
       <button class="btn btn-b" id="btnAtualizar" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 3.5V10h-6.5"/></svg>Atualizar</button>
@@ -2145,9 +2147,78 @@ ligarPresets("hPre","h", () => garantirJanela(() => desenharHist(true)));
       certo — não a hora do relógio.
    ================================================================== */
 
-const SINC_ABERTOS_MS = 60000;
-const SINC_PERIODO_MS = 600000;
-const VELHO_MS = 180000;        /* a partir daqui o dado é anunciado como velho */
+/* O painel NÃO busca sozinho.
+
+   Buscar de minuto em minuto gastava uns 40 minutos dos 90 que o Apps
+   Script de conta comum dá por DIA — duas abas abertas estouravam a
+   cota, e quando ela estoura o Google devolve página de erro no lugar
+   de dado. Então a leitura passou a acontecer em três momentos, e só:
+
+     - ao abrir a página (ou num F5)
+     - uma vez por dia, na primeira passagem pelas 07h
+     - quando você aperta Atualizar
+
+   São três chamadas por dia no lugar de 528. Em troca, o dado na tela
+   pode ter horas — e é por isso que a idade dele fica escrita no
+   cabeçalho o tempo todo, e não só quando alguém procura. */
+const HORA_DA_CARGA = 7;          /* a atualização automática do dia */
+const RELOGIO_MS = 60000;         /* de quanto em quanto o relógio é conferido */
+
+/* ---------- o guardado ----------
+   Abrir o painel deixa de esperar a planilha: ele mostra na hora a
+   última leitura boa, guardada no navegador, com a idade à vista. A
+   busca só acontece quando é devida — 07h, Atualizar, ou aviso do
+   registrador.
+
+   A marca de versão é obrigatória: um painel novo encontrando uma cópia
+   antiga de formato diferente quebraria a tela, e esse é o tipo de
+   defeito que só aparece semanas depois. Quando eu mudar o formato dos
+   dados, mudo o número aqui e toda cópia velha é descartada sozinha. */
+const GUARDA_CHAVE = "painel-ocorrencias-dados";
+const GUARDA_VERSAO = 1;
+const GUARDA_MAX = 3000000;       /* acima disso não vale a pena guardar */
+
+function guardar(){
+  try {
+    const pacote = JSON.stringify({
+      v: GUARDA_VERSAO, selo: SELO, janela: JANELA,
+      periodo: PERIODO, abertos: ABERTOS,
+      locais: LOCAIS, eventos: EVENTOS, fontes: FONTES
+    });
+    if (pacote.length > GUARDA_MAX) { localStorage.removeItem(GUARDA_CHAVE); return; }
+    localStorage.setItem(GUARDA_CHAVE, pacote);
+  } catch (e){ /* navegador sem espaço ou em janela anônima: segue sem guardar */ }
+}
+
+/* Devolve true quando conseguiu recompor a tela a partir do guardado. */
+function recuperarGuardado(){
+  let g;
+  try { g = JSON.parse(localStorage.getItem(GUARDA_CHAVE) || "null"); }
+  catch (e){ return false; }
+  if (!g || g.v !== GUARDA_VERSAO || !g.selo || !Array.isArray(g.periodo)) return false;
+  SELO = g.selo; JANELA = g.janela;
+  PERIODO = g.periodo; ABERTOS = g.abertos || [];
+  LOCAIS = g.locais || []; EVENTOS = g.eventos || []; FONTES = g.fontes || [];
+  COR_EV = montarPaleta(EVENTOS);
+  document.querySelectorAll(".f-ev").forEach(sel => selOpts(sel, EVENTOS, "Todos os eventos"));
+  document.querySelectorAll(".f-loc").forEach(sel => selOpts(sel, LOCAIS, "Todos os locais"));
+  return true;
+}
+
+
+/* Insistir contra um backend que está falhando é o pior uso possível da
+   cota: gasta o que resta dela e atrasa a volta. A cada falha seguida a
+   espera dobra, até meia hora; um acerto zera. */
+const ESPERA_MAX_MS = 1800000;
+let falhasSeguidas = 0;
+let proximaTentativa = 0;
+function podeTentar(){ return Date.now() >= proximaTentativa; }
+function registrarFalha(){
+  falhasSeguidas++;
+  const espera = Math.min(ESPERA_MAX_MS, RELOGIO_MS * Math.pow(2, falhasSeguidas - 1));
+  proximaTentativa = Date.now() + espera;
+}
+function registrarAcerto(){ falhasSeguidas = 0; proximaTentativa = 0; }
 
 let ultimoErro = null;
 let sincronizando = false;
@@ -2155,11 +2226,36 @@ let periodoPendente = false;    /* chegou dado novo com a tabela em uso */
 let emCurso = null;             /* Promise da sincronização em voo, ou null */
 let naFila = false;             /* um pedido seu espera a vez */
 
+function doDiaDeHoje(quando){
+  const d = dData(quando), n = agora();
+  return d.getDate() === n.getDate() && d.getMonth() === n.getMonth()
+      && d.getFullYear() === n.getFullYear();
+}
+
+/* Quanto tempo faz, em palavras. Com o painel não buscando sozinho, a
+   idade do dado deixou de ser detalhe e virou parte do número: 1 local
+   fora do ar às 7h e 1 local fora do ar agora são notícias diferentes. */
+function idadeEmPalavras(quando){
+  const min = Math.floor((agora() - dData(quando)) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return "há " + min + "min";
+  if (!doDiaDeHoje(quando)) return "de " + fmtDHA(quando).slice(0, 10);
+  const h = Math.floor(min / 60), m = min % 60;
+  return "há " + h + "h" + (m ? p2(m) : "");
+}
+
 function marcarSelo(){
-  const s = $("stamp");
-  if (!SELO){ s.textContent = "—"; $("apRel").textContent = "--:--"; return; }
+  const s = $("stamp"), i = $("stampIdade");
+  if (!SELO){
+    s.textContent = "—"; if (i) i.textContent = "";
+    $("apRel").textContent = "--:--"; return;
+  }
   const d = dData(SELO);
   s.textContent = p2(d.getDate())+"/"+p2(d.getMonth()+1)+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+  if (i){
+    i.textContent = idadeEmPalavras(SELO);
+    i.classList.toggle("velho", !doDiaDeHoje(SELO));
+  }
   const n = agora();
   $("apRel").textContent = p2(n.getHours())+":"+p2(n.getMinutes());
 }
@@ -2203,9 +2299,12 @@ function mostrarEstado(){
     tipo = "aviso";
     txt = "Chegaram dados novos. A tabela não foi redesenhada para não mexer no que você está lendo.";
     acao = "Mostrar agora";
-  } else if (SELO && (agora() - dData(SELO)) > VELHO_MS){
+  } else if (SELO && !doDiaDeHoje(SELO)){
+    /* dado de outro dia é o único caso que merece faixa: a idade normal
+       já está escrita no cabeçalho, e repetir isso o dia inteiro numa
+       tela de parede vira ruído que ninguém mais lê */
     tipo = "aviso";
-    txt = "Os dados são de " + fmtDHA(SELO) + " e não atualizam desde então.";
+    txt = "Estes dados são de " + fmtDHA(SELO) + ". O painel não busca sozinho — atualize para ver o de hoje.";
     acao = "Atualizar";
   }
 
@@ -2287,7 +2386,9 @@ async function rodarSincronizacao(silencioso, oQue){
 
     SELO = sDataHora(agora());
     ultimoErro = null;
+    registrarAcerto();
     reiniciarContagem();
+    guardar();
 
     /* o "agora" pode sempre redesenhar: ninguém está lendo uma tabela ali */
     desenharAgora();
@@ -2304,6 +2405,7 @@ async function rodarSincronizacao(silencioso, oQue){
        metade, respondeu algo que não é dado. Reescrever tudo como "não
        deu para falar" apagava justamente o que ajuda a achar a causa. */
     ultimoErro = String((e && e.message) || "A planilha recusou a consulta.");
+    registrarFalha();
   } finally {
     sincronizando = false;
     b.classList.remove("girando"); b.disabled = false;
@@ -2585,18 +2687,29 @@ addEventListener("keydown", e => {
   if (e.key === "Escape" && document.body.classList.contains("relatando")) fecharRelatorio();
 });
 
+/* A carga do dia: a primeira vez que o relógio passa das 07h com dado
+   de antes disso. Conferir a hora não custa rede — só a busca custa, e
+   ela acontece uma vez. */
+function passouDaHoraDeHoje(){
+  if (!SELO) return false;
+  const n = agora();
+  if (n.getHours() < HORA_DA_CARGA) return false;
+  const corte = new Date(n.getFullYear(), n.getMonth(), n.getDate(), HORA_DA_CARGA, 0, 0);
+  return dData(SELO) < corte;
+}
 setInterval(() => {
-  if (document.hidden || !SELO) return;
-  sincronizar(true, "abertos");
-}, SINC_ABERTOS_MS);
+  if (document.hidden || !podeTentar()) return;
+  if (passouDaHoraDeHoje()) sincronizar(true);
+}, RELOGIO_MS);
 
+
+
+/* a idade do dado envelhece sozinha na tela, sem tocar a rede */
 setInterval(() => {
-  if (document.hidden || !SELO) return;
-  sincronizar(true);
-}, SINC_PERIODO_MS);
-
-/* o aviso de "dado velho" precisa aparecer sozinho, sem esperar busca */
-setInterval(() => { if (!document.hidden) mostrarEstado(); }, 30000);
+  if (document.hidden) return;
+  marcarSelo();
+  mostrarEstado();
+}, 30000);
 
 /* a descrição do filtro em palavras — usada no cabeçalho de impressão,
    na apresentação e no relatório */
@@ -2922,11 +3035,31 @@ addEventListener("keydown", e => {
   $("hDe").value = sData(de30); $("hAte").value = sData(hoje);
   marcarSelo();
 
-  /* O cadastro sai no mesmo lote da primeira busca — a própria
-     sincronização cuida disso enquanto a lista de eventos estiver vazia.
-     Se ela falhar, o aviso traz "Tentar de novo" e a tentativa seguinte
-     busca o cadastro outra vez. */
-  sincronizar(false);
+  /* Se há cópia guardada, a tela nasce pronta e só vai à planilha se a
+     carga do dia estiver devida. Sem cópia, busca como sempre — e o
+     cadastro sai no mesmo lote, porque a lista de eventos está vazia. */
+  if (recuperarGuardado()){
+    marcarSelo();
+    desenharAgora(); desenharGeral(); desenharHist();
+    mostrarEstado();
+    if (passouDaHoraDeHoje()) sincronizar(true);
+  } else {
+    sincronizar(false);
+  }
+
+  /* ---------- aviso do registrador ----------
+     Quando os dois estão abertos no mesmo navegador, gravar no
+     registrador avisa o painel na hora — sem perguntar nada à planilha
+     e sem esperar ciclo nenhum. Só alcança o mesmo navegador; quem está
+     noutra máquina continua com a carga das 07h e o Atualizar. */
+  try {
+    const canal = new BroadcastChannel("ocorrencias-na-rede");
+    canal.addEventListener("message", ev => {
+      if (!ev.data || ev.data.tipo !== "gravou") return;
+      if (document.hidden) return;
+      sincronizar(true);
+    });
+  } catch (e){ /* navegador sem BroadcastChannel: segue no ritmo normal */ }
 
   let rz;
   addEventListener("resize", () => {

@@ -3662,7 +3662,27 @@ function repintar(){
 }
 
 /* Põe no lugar, insere ou tira, conforme a situação que voltou. */
+/* ------------------------------------------------------------------
+   Aviso para o painel
+
+   O painel não busca sozinho para não queimar a cota do Apps Script.
+   Quando ele está aberto no mesmo navegador, este aviso faz a ponte: o
+   registrador grava, avisa, e o painel atualiza na hora — sem consulta
+   periódica e sem ninguém apertar nada.
+
+   Só alcança o mesmo navegador. É de conforto, não de correção: o dado
+   chega ao painel de qualquer jeito, na carga das 07h ou no Atualizar.
+   ------------------------------------------------------------------ */
+let canalPainel = null;
+try { canalPainel = new BroadcastChannel('ocorrencias-na-rede'); }
+catch(e){ /* navegador antigo: segue sem avisar */ }
+function avisarPainel(){
+  try { if(canalPainel) canalPainel.postMessage({tipo:'gravou', em:Date.now()}); }
+  catch(e){}
+}
+
 function aplicar(resposta){
+  avisarPainel();                       /* toda gravação que chega aqui deu certo */
   const lista = listaDeIncidentes(resposta);
   if(!lista.length){ repintar(); return; }
 
