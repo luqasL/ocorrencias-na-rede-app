@@ -13,7 +13,7 @@
    status: veredito grande + régua de censo dos locais.
    Paleta de séries e de status vem do sistema validado; validador rodado
    contra as superfícies deste arquivo (claro #FCFDFE / escuro #191F26).
-   Maquete: dados de exemplo no fim do arquivo, zero chamada de rede.
+   Os dados vêm do Firestore, e chegam sozinhos quando alguém grava.
    ========================================================================== */
 
 /* ---------- tokens: plano claro ---------- */
@@ -697,7 +697,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
     <div class="stamp">dados de<b id="stamp">—</b><i id="stampIdade"></i></div>
     <div class="bz-acts">
       <button class="btn btn-b" id="btnAtualizar" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 3.5V10h-6.5"/></svg>Atualizar</button>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6M20.5 3.5V10h-6.5"/></svg>Sincronizar</button>
       <button class="btn btn-b" id="btnPdf" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0-4-4m4 4 4-4M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/></svg>Exportar PDF</button>
       <button class="btn btn-b" id="btnTema" type="button" aria-live="polite">
@@ -920,6 +920,406 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
 <div class="tip" id="tip" role="status" aria-live="polite"></div>
 
+
+<script>
+/* A promessa precisa existir ANTES do script da interface rodar.
+
+   Módulo é sempre adiado: o <script> clássico lá embaixo executa primeiro.
+   Se o apiGet procurasse window.__apiPronta e achasse undefined, o
+   Promise.race resolveria na hora com undefined — e a tela diria
+   "api is not a function", que foi exatamente o que aconteceu na primeira
+   montagem. Criando a promessa aqui, a ordem deixa de importar. */
+window.__apiPronta = new Promise((ok, nao) => {
+  window.__apiResolve = ok;
+  window.__apiRejeita = nao;
+});
+
+/* Se o módulo abaixo não chegar a rodar — SDK que não carregou, import que
+   falhou, rede que caiu no meio — a promessa ficaria pendurada para sempre
+   e a tela diria "Buscando…" até o fim dos tempos, sem erro nenhum à vista.
+   Este prazo transforma o silêncio em mensagem. */
+setTimeout(() => {
+  if (window.__apiResolvida) return;
+  window.__apiRejeita(new Error('O Firebase não carregou. Confira a conexão e recarregue a página.'));
+}, 25000);
+</script>
+<script type="module">
+/* ==================================================================
+   Camada de dados — Firestore
+
+   Substitui o Apps Script. A interface abaixo não muda: continua
+   chamando apiGet(acao, params) e recebendo o mesmo formato.
+   ================================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, signInAnonymously }
+  from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, query, where, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+/* Camada de dados sobre o Firestore.
+
+   Entrega a MESMA porta que o painel e o registrador já usam hoje:
+   apiGet(acao, params) devolvendo exatamente o que o Apps Script devolvia.
+   Toda a interface continua igual — ela nem fica sabendo que o dado mudou
+   de lugar.
+
+   Esta primeira parte cobre o que o PAINEL precisa: `meta` e `incidentes`.
+   As ações de escrita entram na etapa do registrador.
+
+   REGRA DE DATA: no banco, data é a string 'YYYY-MM-DDTHH:mm' em horário
+   local. Nunca vira Date para ser guardada, nunca vira UTC. Comparar
+   período é comparar texto — e funciona porque esse formato ordena
+   alfabeticamente na mesma ordem em que ordena cronologicamente.
+*/
+
+const LIMITE_SUSPEITO_MIN = 7 * 24 * 60;   // 7 dias, igual ao backend
+
+/* 'YYYY-MM-DDTHH:mm' -> Date local. Serve só para contas de duração;
+   o valor guardado continua sendo o texto. */
+function paraData(s){
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(s));
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0, 0);
+}
+
+/* Os limites de um filtro de período, como texto comparável.
+   'de' pega o dia inteiro desde 00:00; 'ate' até 23:59 — mesmo
+   comportamento do parseDataLocal_(v, fimDoDia) do backend. */
+function limiteDe(v){
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s + 'T00:00';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  return null;
+}
+function limiteAte(v){
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s + 'T23:59';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  return null;
+}
+
+const minutos = (a, b) => Math.round((b.getTime() - a.getTime()) / 60000);
+
+/* ------------------------------------------------------------------
+   Montagem da resposta
+
+   Espelho de montarIncidente_ / montarOcorrencia_ do Codigo.gs. O que
+   sai daqui é consumido pela interface sem nenhuma adaptação, então
+   qualquer diferença de nome ou de tipo quebra tela.
+   ------------------------------------------------------------------ */
+
+function montarOcorrencia(u, idInc, agora){
+  const ini = paraData(u.inicio);
+  const aberto = u.situacao === 'aberto';
+  const sp = String(u.slotPon || '').trim();
+  return {
+    id: String(u.id),
+    idIncidente: String(idInc),
+    local: String(u.local || ''),
+    slotPon: sp,
+    temPorta: !!sp,
+    inicio: u.inicio || null,
+    termino: u.termino || null,
+    duracaoMin: u.duracaoMin === undefined ? null : u.duracaoMin,
+    emAbertoMin: (aberto && ini) ? Math.round((agora - ini.getTime()) / 60000) : null,
+    observacao: String(u.observacao || ''),
+    horarioInformacao: u.horarioInformacao || null,
+    fonte: String(u.fonte || ''),
+    situacao: String(u.situacao || '')
+  };
+}
+
+function montarIncidente(d, agora){
+  const ini = paraData(d.inicio);
+  const aberto = d.situacao === 'aberto';
+  const emAbertoMin = (aberto && ini) ? Math.round((agora - ini.getTime()) / 60000) : null;
+  const locaisTexto = String(d.locaisTexto || '');
+  return {
+    id: String(d.id),
+    evento: String(d.evento || ''),
+    escopo: String(d.escopo || ''),
+    locais: locaisTexto ? locaisTexto.split(';').map(s => s.trim()) : [],
+    locaisTexto,
+    qtdLocais: d.qtdLocais === null || d.qtdLocais === undefined ? 0 : d.qtdLocais,
+    inicio: d.inicio || null,
+    termino: d.termino || null,
+    duracaoMin: d.duracaoMin === undefined ? null : d.duracaoMin,
+    emAbertoMin,
+    qtdPortas: d.qtdPortas === undefined ? null : d.qtdPortas,
+    qtdRestabelecidas: d.qtdRestabelecidas === undefined ? null : d.qtdRestabelecidas,
+    observacao: String(d.observacao || ''),
+    horarioInformacao: d.horarioInformacao || null,
+    fonte: String(d.fonte || ''),
+    situacao: String(d.situacao || ''),
+    suspeito: String(d.suspeito || '') === 'sim' ||
+              (emAbertoMin !== null && emAbertoMin > LIMITE_SUSPEITO_MIN),
+    justificativa: String(d.justificativa || ''),
+    conferido: String(d.conferido || ''),
+    tipoARevisar: String(d.tipoRevisar || '') === 'sim'
+  };
+}
+
+/* ------------------------------------------------------------------
+   A camada
+
+   `fs` é o punhado de funções do SDK do Firestore que isto usa. Vem de
+   fora para o teste poder entregar um dublê e exercitar esta lógica sem
+   rede nenhuma.
+   ------------------------------------------------------------------ */
+function criarCamada({ db, fs, agora }){
+  const relogio = agora || (() => Date.now());
+
+  async function meta(){
+    const d = await fs.getDoc(fs.doc(db, 'config', 'listas'));
+    const c = d.exists() ? d.data() : { locais: [], eventos: [], fontes: [] };
+    return {
+      locais: (c.locais || []).slice().sort(),
+      eventos: c.eventos || [],
+      fontes: (c.fontes || []).slice().sort(),
+      limiteSuspeitoHoras: LIMITE_SUSPEITO_MIN / 60
+    };
+  }
+
+  /* Busca no banco o mais estreito que o filtro permitir, e o resto
+     peneira aqui. Trazer 710 documentos quando o pedido era "os três
+     abertos" seria pagar caro por nada — e a cota do plano gratuito é
+     contada por documento lido. */
+  /* A consulta vive separada da busca porque DUAS coisas precisam dela: ir
+     buscar agora, e ficar vigiando depois. Se cada uma montasse a sua, um dia
+     elas divergiriam e o listener passaria a vigiar um conjunto diferente do
+     que a tela carregou — sem ninguém perceber, porque a tela continuaria
+     certa até alguém mexer justamente no que ficou de fora. */
+  function montarConsulta(p){
+    const col = fs.collection(db, 'incidentes');
+    const de  = limiteDe(p.de);
+    const ate = limiteAte(p.ate);
+
+    /* Qual filtro mandar ao banco quando existe mais de um?
+
+       Só dá para mandar UM sem precisar de índice composto, então vale
+       escolher o mais seletivo. O período ganha do estado: a aba Fechados
+       com 30 dias devolve ~100 incidentes, enquanto "fechado" sozinho traz
+       os 691 do histórico inteiro. Medi isso — filtrando por estado, a aba
+       lia 691 documentos para mostrar 100.
+
+       Sem período, o estado é o que sobra: "aberto" traz 3 documentos em
+       vez de 710. O que não for filtrado no banco é peneirado logo abaixo,
+       então o resultado é o mesmo nos dois caminhos — muda só o custo. */
+    let consulta = col;
+    if (de || ate){
+      const partes = [];
+      if (de)  partes.push(fs.where('inicio', '>=', de));
+      if (ate) partes.push(fs.where('inicio', '<=', ate));
+      consulta = fs.query(col, ...partes);
+    } else if (p.situacao){
+      consulta = fs.query(col, fs.where('situacao', '==', p.situacao));
+    }
+
+    return { consulta, de, ate };
+  }
+
+  async function buscarCrus(p){
+    const { consulta, de, ate } = montarConsulta(p);
+    const snap = await fs.getDocs(consulta);
+    const out = [];
+    snap.forEach(s => out.push(s.data()));
+    return { crus: out, de, ate };
+  }
+
+  /* Peneira e monta — o que sobra depois do que o banco já filtrou.
+     Usado tanto pela busca quanto pela vigilância, pelo mesmo motivo de
+     a consulta ser compartilhada: duas peneiras diferentes dariam duas
+     respostas diferentes para o mesmo pedido. */
+  function peneirar(crus, p, de, ate){
+    const agora = relogio();
+    const lista = [];
+
+    for (const d of crus){
+      if (!d || !d.id) continue;
+      const situacao = String(d.situacao || '');
+      if (situacao === 'excluido' && p.incluirExcluidos !== 'sim') continue;
+      if (p.situacao && situacao !== p.situacao) continue;
+      if (p.evento && String(d.evento) !== p.evento) continue;
+
+      if (p.local){
+        // o backend olha os locais das UNIDADES; aqui eles estão no próprio
+        // documento, porque o recalcular sempre deixou os dois iguais
+        const alvo = String(p.local).trim().toUpperCase();
+        const tem = (d.unidades || []).some(u =>
+          u.situacao !== 'excluido' && String(u.local || '').trim().toUpperCase() === alvo);
+        if (!tem) continue;
+      }
+
+      if (!d.inicio) continue;            // sem início não entra em lista nenhuma
+      if (de  && d.inicio < de)  continue;
+      if (ate && d.inicio > ate) continue;
+
+      const m = montarIncidente(d, agora);
+      if (p.precisaRevisao === 'sim' &&
+          !((m.suspeito && m.conferido !== 'sim') || m.tipoARevisar)) continue;
+
+      if (p.comUnidades === 'sim'){
+        m.unidades = (d.unidades || [])
+          .filter(u => u.situacao !== 'excluido')
+          .map(u => montarOcorrencia(u, d.id, agora));
+      }
+      lista.push(m);
+    }
+
+    lista.sort((a, b) => (b.inicio || '').localeCompare(a.inicio || ''));
+    const total = lista.length;          // conta o que existe, não o que sobrou do corte
+    const cortada = p.limite ? lista.slice(0, Number(p.limite)) : lista;
+    return { total, incidentes: cortada };
+  }
+
+  async function incidentes(p){
+    p = p || {};
+    const { crus, de, ate } = await buscarCrus(p);
+    return peneirar(crus, p, de, ate);
+  }
+
+  /* ------------------------------------------------------------------
+     Vigiar
+
+     A diferença entre isto e `incidentes` é quem fala primeiro. Buscar é
+     perguntar "como está agora?" e pagar pela resposta. Vigiar é abrir uma
+     linha e ficar calado: o banco é que avisa quando algo muda, e só então
+     custa — um documento por documento que mudou. Ficar conectado não
+     custa nada, nem por hora nem por dia.
+
+     É por isso que o ritmo de atualização deixa de ser uma escolha de
+     cadência (de quanto em quanto tempo pergunto?) e vira simplesmente
+     "quando acontecer".
+
+     Devolve a função que desliga. Quem chama é responsável por chamá-la
+     ao trocar de filtro ou ao sair da tela — listener esquecido aberto
+     continua recebendo e continua contando.
+     ------------------------------------------------------------------ */
+  function vigiar(p, aoMudar, aoFalhar){
+    p = p || {};
+    if (!fs.onSnapshot) throw new Error('Este navegador não recebeu o recurso de vigilância.');
+    const { consulta, de, ate } = montarConsulta(p);
+    return fs.onSnapshot(consulta, snap => {
+      const crus = [];
+      snap.forEach(s => crus.push(s.data()));
+      aoMudar(peneirar(crus, p, de, ate), {
+        // de onde veio: cache local do SDK ou servidor de fato
+        doServidor: !(snap.metadata && snap.metadata.fromCache),
+        quantos: snap.size
+      });
+    }, erro => {
+      if (aoFalhar) aoFalhar(erro);
+    });
+  }
+
+  async function incidente(id){
+    if (!id) throw new Error('Informe o id do incidente.');
+    const s = await fs.getDoc(fs.doc(db, 'incidentes', String(id)));
+    if (!s.exists()) throw new Error('Incidente não encontrado: ' + id);
+    const d = s.data();
+    const agora = relogio();
+    const m = montarIncidente(d, agora);
+    m.unidades = (d.unidades || [])
+      .filter(u => u.situacao !== 'excluido')
+      .map(u => montarOcorrencia(u, d.id, agora));
+    return m;
+  }
+
+  async function ocorrencias(p){
+    p = p || {};
+    const snap = await fs.getDocs(fs.collection(db, 'incidentes'));
+    const agora = relogio();
+    const de = limiteDe(p.de), ate = limiteAte(p.ate);
+    const out = [];
+
+    snap.forEach(s => {
+      const d = s.data();
+      (d.unidades || []).forEach(u => {
+        if (!u.id) return;
+        if (u.situacao === 'excluido' && p.incluirExcluidos !== 'sim') return;
+        if (p.idIncidente && String(d.id) !== p.idIncidente) return;
+        if (p.local && String(u.local || '').trim().toUpperCase() !== String(p.local).trim().toUpperCase()) return;
+        if (p.situacao && String(u.situacao) !== p.situacao) return;
+        if (p.semPorta === 'sim' && String(u.slotPon || '').trim()) return;
+        if (p.slot && !casaSlot(u.slotPon, p.slot)) return;
+        if (p.pon  && !casaPon(u.slotPon, p.pon)) return;
+        if (!u.inicio) return;
+        if (de  && u.inicio < de)  return;
+        if (ate && u.inicio > ate) return;
+        out.push(montarOcorrencia(u, d.id, agora));
+      });
+    });
+
+    /* Mais recente primeiro. No empate — e são 169 instantes com mais de uma
+       unidade, um deles com 59 — o backend caía na ordem física das linhas da
+       planilha, que é arbitrária e muda sozinha quando alguém insere linha.
+       Aqui o desempate é o id, que é a ordem de criação: mesma lista, mesmos
+       dados, só que numa ordem que não depende de onde a linha estava. */
+    out.sort((a, b) => (b.inicio || '').localeCompare(a.inicio || '')
+                    || (a.id || '').localeCompare(b.id || ''));
+    const total = out.length;
+    return { total, ocorrencias: p.limite ? out.slice(0, Number(p.limite)) : out };
+  }
+
+  const casaSlot = (sp, alvo) => {
+    const m = /SLOT\s*(\d+)/i.exec(String(sp || ''));
+    return !!m && Number(m[1]) === Number(alvo);
+  };
+  const casaPon = (sp, alvo) => {
+    const m = /PON\s*(\d+)/i.exec(String(sp || ''));
+    return !!m && Number(m[1]) === Number(alvo);
+  };
+
+  const ACOES = { meta, incidentes, ocorrencias,
+                  incidente: p => incidente(p && p.id),
+                  /* vigiar não é uma ação como as outras: devolve a função de
+                     desligar, não um dado. Fica fora do apiGet, exposto à parte. */
+                  /* usado pela camada de escrita: monta a resposta a partir do
+                     documento que ela acabou de gravar, sem reler o banco.
+                     Fica aqui para existir um montador só no sistema. */
+                  __montar: d => {
+                    const agora = relogio();
+                    const m = montarIncidente(d, agora);
+                    m.unidades = (d.unidades || [])
+                      .filter(u => u.situacao !== 'excluido')
+                      .map(u => montarOcorrencia(u, d.id, agora));
+                    return m;
+                  } };
+
+  const apiGet = async function (acao, params){
+    const fn = ACOES[acao];
+    if (!fn) throw new Error('Ação desconhecida: ' + acao);
+    return fn(params || {});
+  };
+  apiGet.vigiar = vigiar;
+  return apiGet;
+}
+
+
+(async () => {
+  try {
+    const app = initializeApp({
+      "apiKey": "AIzaSyC5_Enm_UpazRoNZbR90JTgJmS7R8_nJ_o",
+      "authDomain": "database-ocorrencias-rede.firebaseapp.com",
+      "projectId": "database-ocorrencias-rede",
+      "storageBucket": "database-ocorrencias-rede.firebasestorage.app",
+      "messagingSenderId": "477031353338",
+      "appId": "1:477031353338:web:5d49569aaa42013f38f243"
+    });
+    const db = getFirestore(app);
+    await signInAnonymously(getAuth(app));
+    window.__apiResolvida = true;
+    window.__apiResolve(criarCamada({
+      db, fs: { collection, doc, getDoc, getDocs, query, where, onSnapshot } }));
+  } catch (e){
+    window.__apiResolvida = true;
+    window.__apiRejeita(e);
+  }
+})();
+</script>
 <script>
 "use strict";
 /* ==================================================================
@@ -945,10 +1345,9 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
    calcular, e volta a string para guardar.
    ================================================================== */
 
-const CFG = {
-  URL: "https://script.google.com/macros/s/AKfycbxTJTcd4ZYt5SwTKfyTBTm18OL-7DoVpyakSM7Gu10vHXK2eLZktNmGDrtqj6RV5wwAIg/exec",
-  TOKEN: "12511377amz"
-};
+/* Não há mais URL nem token: o dado vem do Firestore, e quem autoriza é a
+   regra de segurança do banco, não uma senha escrita aqui dentro. */
+const CFG = { FONTE: "firestore" };
 
 let LOCAIS = [];
 let EVENTOS = [];          /* ordem canônica: a da Configuração */
@@ -1042,45 +1441,36 @@ class ErroDeRede extends Error {
 const ESPERA_MS = 60000;
 
 async function apiGet(action, params){
-  const u = new URL(CFG.URL);
-  u.searchParams.set("action", action);
-  u.searchParams.set("token", CFG.TOKEN);
-  for (const k in (params || {})){
-    const v = params[k];
-    if (v === undefined || v === null || v === "") continue;
-    u.searchParams.set(k, v);
-  }
-  const ctrl = new AbortController();
-  const relogio = setTimeout(() => ctrl.abort(), ESPERA_MS);
+  /* O ESPERA_MS continua valendo, mas por outro motivo: antes era para não
+     ficar pendurado esperando a planilha; agora é rede comum, que também
+     pode engasgar. O SDK do Firestore não aceita AbortController, então o
+     relógio corre por fora. */
+  let api;
   try {
-    return await buscarDados(u, ctrl);
-  } finally {
-    clearTimeout(relogio);
+    api = await Promise.race([
+      window.__apiPronta,
+      new Promise((_, nao) => setTimeout(() => nao(new Error("demorou")), ESPERA_MS))
+    ]);
+  } catch (e){
+    throw new ErroDeRede(e && e.message === "demorou"
+      ? "O banco demorou demais para responder."
+      : "Não deu para entrar no banco de dados.");
   }
-}
 
-async function buscarDados(u, ctrl){
-  const demorou = () => ctrl.signal.aborted;
-  let r;
-  try { r = await fetch(u.toString(), { method: "GET", signal: ctrl.signal }); }
-  catch (e){ throw new ErroDeRede(demorou()
-    ? "A planilha demorou demais para responder."
-    : "Não deu para falar com a planilha."); }
-  let texto;
-  try { texto = await r.text(); }
-  catch (e){ throw new ErroDeRede(demorou()
-    ? "A planilha demorou demais para responder."
-    : "A resposta da planilha veio pela metade."); }
-  let j;
-  try { j = JSON.parse(texto); }
-  catch (e){
-    /* resposta que não é JSON costuma ser a tela de login do Google:
-       implantação com acesso restrito, ou URL de rascunho */
-    throw new ErroDeRede("A planilha respondeu algo que não é dado. " +
-      "Confira se a implantação está publicada para qualquer pessoa.");
+  try {
+    return await Promise.race([
+      api(action, params || {}),
+      new Promise((_, nao) => setTimeout(() => nao(new Error("demorou")), ESPERA_MS))
+    ]);
+  } catch (e){
+    const msg = String((e && e.message) || e);
+    if (msg === "demorou") throw new ErroDeRede("O banco demorou demais para responder.");
+    if (msg.includes("permission") || msg.includes("insufficient"))
+      throw new ErroDeRede("O banco recusou a consulta. Confira as regras de segurança.");
+    if (msg.includes("offline") || msg.includes("unavailable") || msg.includes("network"))
+      throw new ErroDeRede("Não deu para falar com o banco. Confira a conexão.");
+    throw e;
   }
-  if (!j || j.ok !== true) throw new Error(String((j && j.erro) || "Resposta inesperada da planilha."));
-  return j.dados;
 }
 
 /* ---------- janela de datas ----------
@@ -1121,7 +1511,17 @@ async function buscarPeriodo(alvo){
   const j = alvo || janelaPara(lerFiltro("g"));
   const d = await apiGet("incidentes", { comUnidades: "sim", de: j.de, ate: j.ate });
   PERIODO = d.incidentes || [];
+  const mudou = !JANELA || JANELA.de !== j.de || JANELA.ate !== j.ate;
   JANELA = j;
+  /* A vigilância do período depende da janela, e a janela só passa a existir
+     aqui. Religar neste ponto cobre os dois casos: a primeira carga, e a
+     troca de filtro — quando continuar vigiando a janela velha seria mentir
+     devagar, mostrando uma tela que ninguém mais está olhando. */
+  /* Nunca deixar a vigilância derrubar a carga. Se ela falhar — navegador
+     antigo, SDK incompleto, rede ruim — o painel tem que continuar
+     mostrando os dados; perde a atualização automática, não os números.
+     Aprendi isto quebrando: o erro subia por aqui e a tela ficava vazia. */
+  if (mudou) vigiarAgora().catch(erroDaVigilancia);
 }
 
 /* ================================================================== */
@@ -1802,6 +2202,14 @@ function resumoPorta(inc){
 /* ================================================================== */
 /*  Tabela de incidentes: uma linha por incidente, expansível         */
 /* ================================================================== */
+/* Quais incidentes estão com o detalhe aberto.
+
+   A tabela é remontada inteira a cada redesenho, e agora o redesenho
+   acontece sozinho — quando alguém grava do outro lado. Sem guardar isto,
+   a linha que você abriu para ler fecharia na sua cara no meio da leitura.
+   Guarda por id, não por posição: a lista se reordena. */
+const EXPANDIDOS = new Set();
+
 function linhaTabela(inc, tbody){
   const tr = el("tr","linha-inc");
   tr.tabIndex = 0;
@@ -1833,6 +2241,16 @@ function linhaTabela(inc, tbody){
     tr.classList.toggle("aberta", abrindo);
     tr.setAttribute("aria-expanded", String(abrindo));
     if (abrindo && !tdd.firstChild) tdd.appendChild(detalhe(inc));
+    if (abrindo) EXPANDIDOS.add(inc.id); else EXPANDIDOS.delete(inc.id);
+  }
+
+  /* Esta linha já estava aberta antes do redesenho: volta aberta, e com o
+     conteúdo remontado a partir do dado NOVO — que é o ponto de tudo isto. */
+  if (EXPANDIDOS.has(inc.id)){
+    trd.hidden = false;
+    tr.classList.add("aberta");
+    tr.setAttribute("aria-expanded","true");
+    tdd.appendChild(detalhe(inc));
   }
   tr.addEventListener("click", alternar);
   tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); alternar(); } });
@@ -2147,22 +2565,99 @@ ligarPresets("hPre","h", () => garantirJanela(() => desenharHist(true)));
       certo — não a hora do relógio.
    ================================================================== */
 
-/* O painel NÃO busca sozinho.
+/* O painel não pergunta: ele é avisado.
 
-   Buscar de minuto em minuto gastava uns 40 minutos dos 90 que o Apps
-   Script de conta comum dá por DIA — duas abas abertas estouravam a
-   cota, e quando ela estoura o Google devolve página de erro no lugar
-   de dado. Então a leitura passou a acontecer em três momentos, e só:
+   Antes havia um dilema sem saída boa. Perguntar à planilha de minuto em
+   minuto gastava 40 dos 90 minutos diários que o Apps Script de conta
+   comum dá — duas abas abertas estouravam a cota. Perguntar pouco deixava
+   a tela velha. A saída foi perguntar três vezes por dia e escrever a
+   idade do dado no cabeçalho, para ninguém se enganar.
 
-     - ao abrir a página (ou num F5)
-     - uma vez por dia, na primeira passagem pelas 07h
-     - quando você aperta Atualizar
+   O Firestore desfaz o dilema: em vez de perguntar "mudou?", o painel abre
+   uma linha e fica calado. Quem fala é o banco, e só quando algo muda de
+   verdade. Ficar conectado não custa nada; custa um documento por
+   documento que mudou.
 
-   São três chamadas por dia no lugar de 528. Em troca, o dado na tela
-   pode ter horas — e é por isso que a idade dele fica escrita no
-   cabeçalho o tempo todo, e não só quando alguém procura. */
-const HORA_DA_CARGA = 7;          /* a atualização automática do dia */
-const RELOGIO_MS = 60000;         /* de quanto em quanto o relógio é conferido */
+   Então some a cadência, e com ela a carga das 07h e o aviso entre abas —
+   os dois eram remendo para um problema que deixou de existir. */
+const RECUO_BASE_MS = 60000;     /* primeiro intervalo de espera após uma falha */         /* de quanto em quanto o relógio é conferido */
+
+/* ==================================================================
+   Vigilância — o dado chega sozinho
+
+   Duas linhas abertas, pelo mesmo motivo que existem duas consultas:
+   os abertos não levam filtro de data (um incidente aberto fora da
+   janela continua aberto), e o período leva.
+
+   Trocar o filtro desliga e religa: vigiar a janela velha enquanto a
+   tela mostra a nova seria mentir devagar.
+   ================================================================== */
+let pararAbertos = null, pararPeriodo = null;
+
+function ligarVigilancia(){
+  const api = window.__apiPronta;
+  if (!api) return;
+  /* Nada de engolir o erro em silêncio. A primeira versão disto tinha um
+     catch vazio, e quando a camada recusou a vigilância o painel subiu
+     calado, parecendo inteiro, só que parado no tempo. Falhar é aceitável;
+     falhar sem avisar, não. */
+  api.then(vigiarAgora).catch(erroDaVigilancia);
+}
+
+async function vigiarAgora(){
+  const api = await window.__apiPronta;
+  if (!api || !api.vigiar) return;        /* sem vigilância: a tela segue, só não se atualiza sozinha */
+
+  /* Os abertos NÃO dependem da janela — um incidente aberto fora do período
+     escolhido continua aberto. Religar essa linha a cada troca de filtro
+     seria pagar de novo por um dado que não mudou de escopo. */
+  if (!pararAbertos){
+    pararAbertos = api.vigiar({ situacao:"aberto", comUnidades:"sim" }, d => {
+      ABERTOS = d.incidentes;
+      SELO = agoraTexto();
+      chegouDadoNovo();
+    }, erroDaVigilancia);
+  }
+
+  /* O período depende, então este sim religa quando a janela muda. */
+  if (JANELA){
+    if (pararPeriodo){ pararPeriodo(); pararPeriodo = null; }
+    pararPeriodo = api.vigiar(
+      { comUnidades:"sim", de: JANELA.de, ate: JANELA.ate }, d => {
+        PERIODO = d.incidentes;
+        SELO = agoraTexto();
+        chegouDadoNovo();
+      }, erroDaVigilancia);
+  }
+}
+
+function erroDaVigilancia(e){
+  /* Falha de vigilância NUNCA apaga o que está na tela: numa TV de parede,
+     tela em branco é pior que número velho. O painel guarda o recado e
+     continua mostrando o último dado bom. */
+  ultimoErro = String((e && e.message) || "A vigilância do banco caiu.");
+  mostrarEstado();
+}
+
+/* Redesenha preservando onde a pessoa está.
+
+   O que está expandido já é preservado pelo EXPANDIDOS. Falta a rolagem:
+   remontar a tabela encolhe a página por um instante, e o navegador puxa
+   a barra de rolagem para cima. Quem estava lendo o fim da lista voltava
+   ao topo sozinho. */
+function chegouDadoNovo(){
+  const y = window.scrollY;
+  guardar();
+  marcarSelo();
+  desenharAgora(); desenharGeral(); desenharHist();
+  mostrarEstado();
+  if (window.scrollY !== y) window.scrollTo(0, y);
+}
+
+function agoraTexto(){
+  const d = new Date();
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
 
 /* ---------- o guardado ----------
    Abrir o painel deixa de esperar a planilha: ele mostra na hora a
@@ -2174,7 +2669,7 @@ const RELOGIO_MS = 60000;         /* de quanto em quanto o relógio é conferido
    antiga de formato diferente quebraria a tela, e esse é o tipo de
    defeito que só aparece semanas depois. Quando eu mudar o formato dos
    dados, mudo o número aqui e toda cópia velha é descartada sozinha. */
-const GUARDA_CHAVE = "painel-ocorrencias-dados";
+const GUARDA_CHAVE = "painel-ocorrencias-dados-firestore";
 const GUARDA_VERSAO = 1;
 const GUARDA_MAX = 3000000;       /* acima disso não vale a pena guardar */
 
@@ -2215,7 +2710,7 @@ let proximaTentativa = 0;
 function podeTentar(){ return Date.now() >= proximaTentativa; }
 function registrarFalha(){
   falhasSeguidas++;
-  const espera = Math.min(ESPERA_MAX_MS, RELOGIO_MS * Math.pow(2, falhasSeguidas - 1));
+  const espera = Math.min(ESPERA_MAX_MS, RECUO_BASE_MS * Math.pow(2, falhasSeguidas - 1));
   proximaTentativa = Date.now() + espera;
 }
 function registrarAcerto(){ falhasSeguidas = 0; proximaTentativa = 0; }
@@ -2368,7 +2863,7 @@ function sincronizar(silencioso, oQue){
 
 async function rodarSincronizacao(silencioso, oQue){
   sincronizando = true;
-  const b = $("btnAtualizar");
+  const b = $("btnAtualizar");   /* hoje rotulado "Sincronizar" */
   if (!silencioso){ b.classList.add("girando"); b.disabled = true; }
   mostrarEstado();
   try {
@@ -2687,20 +3182,7 @@ addEventListener("keydown", e => {
   if (e.key === "Escape" && document.body.classList.contains("relatando")) fecharRelatorio();
 });
 
-/* A carga do dia: a primeira vez que o relógio passa das 07h com dado
-   de antes disso. Conferir a hora não custa rede — só a busca custa, e
-   ela acontece uma vez. */
-function passouDaHoraDeHoje(){
-  if (!SELO) return false;
-  const n = agora();
-  if (n.getHours() < HORA_DA_CARGA) return false;
-  const corte = new Date(n.getFullYear(), n.getMonth(), n.getDate(), HORA_DA_CARGA, 0, 0);
-  return dData(SELO) < corte;
-}
-setInterval(() => {
-  if (document.hidden || !podeTentar()) return;
-  if (passouDaHoraDeHoje()) sincronizar(true);
-}, RELOGIO_MS);
+/* A carga do dia saiu: o dado chega sozinho, não há mais hora marcada. */
 
 
 
@@ -2754,7 +3236,7 @@ $("btnTema").addEventListener("click", () => {
 /*  Modo apresentação — tela própria, paisagem, sem rolagem           */
 /* ================================================================== */
 let apTimer = null, apIdx = 0, apMexeu = null;
-const AP_MS = 15000;
+const AP_MS = 25000;
 
 /* ---------- rolagem suave da lista em aberto ----------
    Numa tela de parede não há como rolar à mão, então a lista se move
@@ -3042,24 +3524,15 @@ addEventListener("keydown", e => {
     marcarSelo();
     desenharAgora(); desenharGeral(); desenharHist();
     mostrarEstado();
-    if (passouDaHoraDeHoje()) sincronizar(true);
   } else {
     sincronizar(false);
   }
 
-  /* ---------- aviso do registrador ----------
-     Quando os dois estão abertos no mesmo navegador, gravar no
-     registrador avisa o painel na hora — sem perguntar nada à planilha
-     e sem esperar ciclo nenhum. Só alcança o mesmo navegador; quem está
-     noutra máquina continua com a carga das 07h e o Atualizar. */
-  try {
-    const canal = new BroadcastChannel("ocorrencias-na-rede");
-    canal.addEventListener("message", ev => {
-      if (!ev.data || ev.data.tipo !== "gravou") return;
-      if (document.hidden) return;
-      sincronizar(true);
-    });
-  } catch (e){ /* navegador sem BroadcastChannel: segue no ritmo normal */ }
+  /* ---------- a vigilância ----------
+     Substitui o aviso entre abas, que só alcançava o mesmo navegador.
+     Isto alcança qualquer máquina: o painel na TV do setor vê o que foi
+     registrado de outro computador, sem ninguém tocar em nada. */
+  ligarVigilancia();
 
   let rz;
   addEventListener("resize", () => {
