@@ -518,6 +518,30 @@ td.c-t{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5p
 .slotc b{padding:3px 7px;font-weight:650;background:var(--surface-2);white-space:nowrap;}
 .slotc > span{padding:3px 7px;border-left:1px solid var(--hair-2);font-family:var(--mono);
   font-variant-numeric:tabular-nums;color:var(--ink-2);}
+
+/* A GRADE DE PORTAS tambem aqui, na aba "Eventos agora".
+   Antes era "PON 1, 2, 3, 4" — número solto separado por vírgula — enquanto o
+   modo apresentação já mostrava um quadrado por porta. Duas telas do mesmo
+   sistema desenhando a mesma coisa de dois jeitos obriga quem olha a TV e
+   depois abre o painel a reaprender a leitura. Agora é o mesmo desenho:
+   rótulo do slot à esquerda, grade à direita, uma linha por slot.
+   A moldura do chip sai — com quadrado dentro dela ficariam três bordas
+   aninhadas —, e o .slotc sem a classe .portas (o caso "local inteiro",
+   que não tem porta nenhuma) continua como sempre foi. */
+.slots.grades{flex-direction:column;gap:7px;align-items:flex-start;}
+.slotc.portas{border:none;border-radius:0;align-items:center;gap:10px;overflow:visible;}
+.slotc.portas b{background:none;padding:0;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.05em;color:var(--ink-2);min-width:58px;}
+.slotc.portas .grade{display:flex;gap:3px;flex-wrap:wrap;}
+/* span e não i: <i> é itálico por padrão, e número de porta torto parece
+   defeito de renderização */
+.slotc.portas .pon{font-style:normal;min-width:25px;height:23px;padding:0 5px;border-radius:3px;
+  display:grid;place-items:center;font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:12.5px;font-weight:700;}
+/* sem borda, como ficou na TV: o preenchimento sozinho já separa */
+.slotc.portas .pon.fora{background:var(--fora-track);color:var(--pon-fora);}
+.slotc.portas .pon.ok{background:var(--ok-track);color:var(--pon-ok);}
+
 /* a cor do número é o estado da porta; a legenda no k-mais usa as mesmas
    tintas, então ela própria é a chave de leitura */
 /* peso além da cor: vermelho e verde têm quase a mesma luminosidade e é
@@ -528,6 +552,12 @@ td.c-t{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5p
 .pon-leg{margin-left:9px;color:var(--ink-3);}
 .pon-leg::before{content:"·";margin-right:9px;}
 .pon-leg .pn{font-family:var(--mono);font-size:12px;}
+/* a legenda acompanha a grade: ensinar a cor do TEXTO quando o que existe na
+   tela é quadrado preenchido deixaria a chave apontando para nada */
+.pon-leg .pn{display:inline-grid;place-items:center;min-width:23px;height:19px;padding:0 6px;
+  border-radius:3px;font-weight:700;}
+.pon-leg .pn.fora{background:var(--fora-track);color:var(--pon-fora);}
+.pon-leg .pn.ok{background:var(--ok-track);color:var(--pon-ok);}
 .prog{margin-top:11px;}
 .prog .rot{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--ink-2);margin-bottom:5px;}
 .prog .rot b{color:var(--ink);font-family:var(--mono);font-variant-numeric:tabular-nums;}
@@ -2467,14 +2497,14 @@ function rotuloSlotPon(g){
   return s;
 }
 
-/* os números do PON, cada um na tinta do seu estado */
-function numerosPon(g){
-  const w = document.createDocumentFragment();
-  g.pons.forEach((p,i) => {
-    if (i) w.appendChild(document.createTextNode(", "));
-    w.appendChild(el("span", "pn " + (p.fechado ? "ok" : "fora"), p.pon));
-  });
-  return w;
+/* Um quadrado por porta — a mesma grade do modo apresentação.
+   Dois dígitos como lá (01, 02): além de igualar as duas telas, alinha a
+   coluna dos números, que com 1 e 16 lado a lado ficava serrilhada. */
+function gradePon(g){
+  const grade = el("span","grade");
+  g.pons.forEach(p => grade.appendChild(
+    el("span", "pon " + (p.fechado ? "ok" : "fora"), p2(p.pon))));
+  return grade;
 }
 
 /* a legenda é feita com as mesmas tintas: ela é a própria chave */
@@ -2709,15 +2739,13 @@ function desenharAgora(){
       const km = el("div","k-mais", inc.qtdPortas + (inc.qtdPortas === 1 ? " porta afetada" : " portas afetadas"));
       km.appendChild(legendaPon(volta > 0, volta < inc.unidades.length));
       L.appendChild(km);
-      const slots = el("div","slots");
+      const slots = el("div","slots grades");
       gs.forEach(g => {
-        const c = el("span","slotc");
+        const c = el("span","slotc portas");
         c.setAttribute("role","img");
         c.setAttribute("aria-label", rotuloSlotPon(g));
         c.appendChild(el("b", null, "SLOT " + p2(g.slot)));
-        const sp = el("span","pons","PON ");
-        sp.appendChild(numerosPon(g));
-        c.appendChild(sp);
+        c.appendChild(gradePon(g));
         slots.appendChild(c);
       });
       L.appendChild(slots);
