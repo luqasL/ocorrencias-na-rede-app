@@ -829,6 +829,66 @@ body.apres #apres{display:grid;}
 .ap-sair{position:fixed;right:14px;bottom:14px;z-index:101;opacity:0;pointer-events:none;}
 body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
+/* ==================== diagnóstico de OLTs ====================
+   Um gráfico de colunas que serve aos quatro níveis. A cor do pedaço é a
+   do TIPO DE EVENTO (COR_EV), a mesma do resto do painel — aqui ela é
+   diagnóstico, não enfeite: slot que só tem laranja é manutenção
+   programada, slot que só tem azul é sinistro, e isso muda quem você
+   aciona. Vermelho e âmbar ficam de fora de propósito: no painel eles
+   significam ESTADO, e a mesma tinta não pode dizer duas coisas. */
+.dg-barra{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:11px 16px;border-bottom:1px solid var(--hair);}
+.dg-trilha{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-3);flex-wrap:wrap;}
+.dg-trilha button{background:none;border:none;padding:0;font:inherit;font-size:13px;
+  color:var(--accent);font-weight:600;cursor:pointer;}
+.dg-trilha button:hover{text-decoration:underline;}
+.dg-trilha b{color:var(--ink);font-weight:700;}
+.dg-med{margin-left:auto;display:flex;border:1px solid var(--hair-2);border-radius:var(--r);overflow:hidden;}
+.dg-med button{padding:7px 13px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-2);
+  background:var(--well);border:none;cursor:pointer;}
+.dg-med button+button{border-left:1px solid var(--hair-2);}
+.dg-med button:hover{color:var(--ink);}
+.dg-med button[aria-pressed="true"]{background:var(--accent);color:var(--accent-on);}
+.dg-corpo{padding:14px 16px 16px;}
+.dg-sv{width:100%;height:auto;display:block;overflow:visible;}
+.dg-gl{stroke:var(--grid);stroke-width:1;}
+.dg-ge{fill:var(--ink-3);font-family:var(--mono);font-size:10.5px;text-anchor:end;}
+.dg-xr{fill:var(--ink-2);font-family:var(--mono);font-size:11px;text-anchor:middle;}
+.dg-vl{fill:var(--ink);font-family:var(--mono);font-size:11.5px;font-weight:700;text-anchor:middle;}
+.dg-sn{fill:#fff;font-family:var(--mono);font-size:10px;font-weight:700;text-anchor:middle;
+  pointer-events:none;}
+.dg-eixo{fill:var(--ink-3);font-size:11px;font-weight:700;text-anchor:middle;letter-spacing:.1em;}
+.dg-md{stroke:var(--atencao);stroke-width:2;stroke-dasharray:6 4;}
+/* a área de clique é a coluna inteira, não só a barra: alvo de mouse do
+   tamanho do dedo, não do tamanho do dado */
+.dg-hit{fill:transparent;cursor:pointer;}
+.dg-lgd{display:flex;gap:15px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--ink-2);}
+.dg-lgd span{display:inline-flex;align-items:center;gap:6px;}
+.dg-lgd i{width:10px;height:10px;border-radius:2px;flex:none;}
+.dg-lgd .dg-md2{width:16px;height:0;border-top:2px dashed var(--atencao);}
+.dg-lgd b{font-family:var(--mono);color:var(--ink);}
+.dg-nota{margin-top:12px;font-size:12.5px;color:var(--ink-2);}
+.dg-nota button{background:none;border:none;padding:0;font:inherit;font-size:12.5px;
+  color:var(--accent);font-weight:600;cursor:pointer;}
+.dg-nota button:hover{text-decoration:underline;}
+/* o tooltip rico desta aba reaproveita a caixa #tip e sua posição */
+.tip.diag{max-width:none;padding:11px 14px;}
+.tip.diag .dt{font-weight:700;font-size:13px;color:var(--bezel-ink);margin-bottom:7px;}
+.tip.diag .dr{display:flex;justify-content:space-between;gap:18px;font-size:12px;
+  color:var(--bezel-ink-2);padding:2px 0;}
+.tip.diag .dr b{color:var(--bezel-ink);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.tip.diag .dsp{border-top:1px solid var(--bezel-hair);margin:8px 0 6px;}
+.tip.diag .de{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--bezel-ink-2);padding:1px 0;}
+.tip.diag .de i{width:8px;height:8px;border-radius:2px;flex:none;}
+/* pre-line porque a dica junta duas frases com quebra de linha, e sem isto
+   elas saíam coladas numa linha só */
+.tip.diag .dpe{font-size:11px;color:var(--bezel-ink-2);margin-top:8px;padding-top:7px;
+  border-top:1px solid var(--bezel-hair);white-space:pre-line;}
+/* o destaque do relatório: as unidades que casam com o filtro da aba */
+#relCorpo tr.casa td{background:var(--accent-soft);}
+#relCorpo tr.casa td:first-child{box-shadow:inset 3px 0 0 var(--accent);}
+.det-un .cap b{color:var(--accent);}
+
 /* ============================ impressão ============================ */
 @media print{
   :root{--plane:#fff;--surface:#fff;--surface-2:#fff;--well:#fff;--ink:#000;--ink-2:#222;--ink-3:#444;
@@ -936,6 +996,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
     <button role="tab" aria-selected="true" aria-controls="v-geral" id="t-geral" data-v="geral">Visão geral</button>
     <button role="tab" aria-selected="false" aria-controls="v-agora" id="t-agora" data-v="agora">Eventos agora<span class="cnt" id="cntAgora">0</span></button>
     <button role="tab" aria-selected="false" aria-controls="v-hist" id="t-hist" data-v="hist">Histórico geral</button>
+    <button role="tab" aria-selected="false" aria-controls="v-diag" id="t-diag" data-v="diag">Diagnóstico de OLTs</button>
   </nav>
 </header>
 
@@ -1096,6 +1157,41 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
         <span class="info" id="hPg"></span>
         <div class="ctrl"><button class="btn btn-sm" id="hPrev" type="button">Anterior</button><button class="btn btn-sm" id="hNext" type="button">Próxima</button></div>
       </div>
+    </section>
+  </section>
+
+  <!-- ===================== DIAGNÓSTICO DE OLTs =====================
+       Quatro níveis no MESMO gráfico — rede, OLT, slot, porta —, e quem
+       decide o nível são os filtros preenchidos. Clicar numa coluna
+       escreve o filtro; a trilha lê esse estado de volta. Com isso o
+       relatório não precisa saber que existe gráfico: ele lê os filtros,
+       como já faz nas outras abas.                                      -->
+  <section class="vista" id="v-diag" role="tabpanel" aria-labelledby="t-diag" tabindex="-1">
+    <div class="filtro">
+      <div class="campo"><label>Período</label>
+        <div class="presets" id="dPre" role="group" aria-label="Períodos rápidos do diagnóstico">
+          <button type="button" data-d="7">7 dias</button><button type="button" data-d="30">30 dias</button><button type="button" data-d="90">90 dias</button><button type="button" data-d="0">Tudo</button>
+        </div></div>
+      <div class="campo"><label for="dDe">De</label><input type="date" id="dDe"></div>
+      <div class="campo"><label for="dAte">Até</label><input type="date" id="dAte"></div>
+      <div class="campo cresce"><label for="dLoc">OLT</label><select id="dLoc" class="f-loc"></select></div>
+      <div class="campo"><label for="dSlot">Slot</label><select id="dSlot"></select></div>
+      <div class="campo"><label for="dPon">PON</label><select id="dPon"></select></div>
+      <div class="campo cresce"><label for="dEv">Evento</label><select id="dEv" class="f-ev"></select></div>
+      <button class="btn btn-pri" id="btnFiltroD" type="button">Filtrar</button>
+    </div>
+    <section class="painel">
+      <div class="painel-h"><h3>Diagnóstico de OLTs</h3><p class="painel-sub" id="dSub"></p>
+        <button class="btn btn-sm btn-rel" id="dRel" type="button">Relatório completo</button></div>
+      <div class="dg-barra">
+        <div class="dg-trilha" id="dTrilha"></div>
+        <div class="dg-med" id="dMed" role="group" aria-label="Medida do gráfico">
+          <button type="button" data-m="inc" aria-pressed="true">Vezes que caiu</button>
+          <button type="button" data-m="un" aria-pressed="false">Portas afetadas</button>
+          <button type="button" data-m="min" aria-pressed="false">Tempo parado</button>
+        </div>
+      </div>
+      <div class="dg-corpo" id="dCorpo"></div>
     </section>
   </section>
 </main>
@@ -1779,6 +1875,18 @@ function mostrar(v){
   document.querySelectorAll(".abas button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.v === v)));
   document.querySelectorAll(".vista").forEach(s => s.classList.toggle("on", s.id === "v-"+v));
   if (v === "geral") desenharTendencia();
+  /* O diagnóstico abre SEMPRE nos últimos 7 dias, mesmo que na visita
+     anterior você tenha esticado para 90: é tela de investigação, e a
+     investigação quase sempre começa do que acabou de acontecer. */
+  if (v === "diag"){
+    $("dDe").value  = sData(new Date(agora().getTime() - 6*86400000));
+    $("dAte").value = sData(agora());
+    /* e volta ao topo: entrar na aba e cair numa porta específica de três
+       dias atrás seria começar a investigação pelo fim */
+    ["dLoc","dSlot","dPon"].forEach(id => $(id).value = "");
+    dgTudo = false;
+    garantirJanela(desenharDiag);
+  }
 }
 document.querySelectorAll(".abas button").forEach(b => b.addEventListener("click", () => mostrar(b.dataset.v)));
 
@@ -1787,6 +1895,11 @@ function lerFiltro(p){
   const g = s => { const n = $(p+s); return n ? n.value : ""; };
   return { ev:g("Ev"), loc:g("Loc"), de:g("De"), ate:g("Ate"), slot:g("Slot"), pon:g("Pon") };
 }
+/* "SLOT 5 PON 14" — a única forma de ler slot e porta no sistema. Mora
+   aqui em cima porque o filtro usa, e não só o diagnóstico de OLTs. */
+const DG_RE = /SLOT\s+(\d+)\s+PON\s+(\d+)/;
+const dgNum = s => { const m = DG_RE.exec(String(s || "")); return m ? { s:+m[1], p:+m[2] } : null; };
+
 /* `fonte` escolhe a lista: PERIODO para o que é histórico, ABERTOS para
    o que é "agora". Sem fonte, o histórico. */
 function aplicar(f, fonte){
@@ -1796,10 +1909,15 @@ function aplicar(f, fonte){
     if (f.de && inc.inicio < f.de + "T00:00") return false;
     if (f.ate && inc.inicio > f.ate + "T23:59") return false;
     if (f.slot || f.pon){
+      /* comparação NUMÉRICA, não de texto: "SLOT 04 PON 02" e
+         "SLOT 4 PON 2" são a mesma porta, e o startsWith antigo só casava
+         a grafia idêntica à do filtro — um registro com zero à esquerda
+         ficava invisível ao filtro para sempre. */
       const ok = inc.unidades.some(u => {
-        if (!u.slotPon) return false;
-        const okS = !f.slot || u.slotPon.startsWith("SLOT " + f.slot + " ");
-        const okP = !f.pon || u.slotPon.endsWith(" PON " + f.pon);
+        const m = DG_RE.exec(String(u.slotPon || ""));
+        if (!m) return false;
+        const okS = !f.slot || Number(m[1]) === Number(f.slot);
+        const okP = !f.pon  || Number(m[2]) === Number(f.pon);
         return okS && okP;
       });
       if (!ok) return false;
@@ -2592,7 +2710,16 @@ function par(dt, dd, mono){
   d.appendChild(el("dd", mono ? "m" : null, dd));
   return d;
 }
-function detalhe(inc){
+/* `destaque` é opcional: quando vem — hoje só do relatório do Diagnóstico
+   de OLTs — as unidades que casam com o filtro ficam marcadas e a legenda
+   da tabela diz quantas são.
+
+   O relatório lista o incidente INTEIRO, com todas as portas dele,
+   inclusive as de outros slots: é o incidente que aconteceu, e cortá-lo
+   faria o cabeçalho dizer "16 portas afetadas" sobre uma lista de três.
+   O destaque resolve a queixa real — "quais dessas são as minhas" — sem
+   esconder nada. Quem chama sem o segundo argumento não muda em nada. */
+function detalhe(inc, destaque){
   const box = el("div","det-box");
   const dl = el("dl","dl");
   dl.appendChild(par("Evento", inc.evento));
@@ -2617,14 +2744,17 @@ function detalhe(inc){
   box.appendChild(obs);
 
   const un = el("div","det-un");
-  un.appendChild(el("div","cap", inc.unidades.length + (inc.unidades.length === 1 ? " unidade neste incidente" : " unidades neste incidente")));
+  const cap = el("div","cap", inc.unidades.length + (inc.unidades.length === 1 ? " unidade neste incidente" : " unidades neste incidente"));
+  un.appendChild(cap);
   const t = el("table");
   const th = el("thead"); const tr = el("tr");
   ["Local","Slot / PON","Início","Término","Duração","Situação"].forEach((h,i) => tr.appendChild(el("th", i === 4 ? "num" : "", h)));
   th.appendChild(tr); t.appendChild(th);
   const tb = el("tbody");
+  let casam = 0;
   inc.unidades.forEach(u => {
     const r = el("tr");
+    if (destaque && destaque(u)){ r.classList.add("casa"); casam++; }
     r.appendChild(el("td", null, u.local));
     r.appendChild(el("td","c-t", u.slotPon || "sem porta"));
     r.appendChild(el("td","c-t", fmtDHA(u.inicio)));
@@ -2637,6 +2767,10 @@ function detalhe(inc){
     tb.appendChild(r);
   });
   t.appendChild(tb);
+  if (destaque){
+    cap.appendChild(document.createTextNode(" · "));
+    cap.appendChild(el("b", null, casam + (casam === 1 ? " casa com o filtro" : " casam com o filtro")));
+  }
   const rol = el("div","rolagem"); rol.appendChild(t);
   un.appendChild(rol); box.appendChild(un);
   return box;
@@ -2844,6 +2978,476 @@ $("hNext").addEventListener("click", () => { hPagina++; desenharHist(); });
 /* ---------- presets de período ---------- */
 /* d=0 é "Tudo": limpa as duas datas e a busca passa a pedir a base
    inteira. Em compensação é a consulta mais pesada que existe aqui. */
+/* ================================================================== */
+/*  Diagnóstico de OLTs                                               */
+/* ================================================================== */
+/* Quatro níveis — rede, OLT, slot, porta — no MESMO gráfico de colunas.
+   Quem decide o nível são os filtros preenchidos, e clicar numa coluna
+   escreve o filtro. Navegação e filtro são o mesmo estado visto de dois
+   jeitos: por isso a trilha, o gráfico e o relatório nunca discordam, e
+   o relatório não precisa saber que existe gráfico.
+
+   Esta aba só enxerga unidade COM slot/porta anotados. Incidente de
+   "local inteiro" não entra — ele não tem slot para diagnosticar, e seu
+   volume já aparece em "Locais que mais doem", na visão geral, que conta
+   toda unidade. Daí o estado-vazio explicar isso em vez de mostrar um
+   retângulo em branco: OLT que só tem local inteiro (PARÁ, ITAITUBA)
+   ficaria parecendo limpa. */
+const DG_MOSTRA = 14;    /* colunas no nível de OLT antes do "ver todas" */
+const DG_MAXDIA = 92;    /* acima disso o eixo de dia mostra só dias com dado */
+let dgMedida = "inc";
+let dgTudo = false;
+
+/* As três medidas discordam de propósito, e é por isso que são três: um
+   slot pode cair uma vez e parar três dias, e outro cair toda semana por
+   dez minutos. "Vezes que caiu" conta INCIDENTE distinto; "Portas
+   afetadas" conta unidade; "Tempo parado" soma minutos. */
+const DG_MED = {
+  inc: { rot:"Vezes que caiu",  val:c => c.inc.size,
+         part:c => { const o = {}; for (const e in c.evInc) o[e] = c.evInc[e].size; return o; },
+         fmt:v => String(Math.round(v)) },
+  un:  { rot:"Portas afetadas", val:c => c.un,  part:c => c.evUn,
+         fmt:v => String(Math.round(v)) },
+  min: { rot:"Tempo parado",    val:c => c.min, part:c => c.evMin,
+         fmt:v => v ? fmtDur(Math.round(v)) : "0" }
+};
+
+/* O nível é lido dos filtros, nunca guardado à parte: estado duplicado é
+   estado que diverge. */
+function dgNivel(f){
+  if (!f.loc)  return "olt";
+  if (!f.slot) return "slot";
+  if (!f.pon)  return "pon";
+  return "dia";
+}
+/* A unidade entra? Respeita OLT, slot e porta mesmo quando o nível não é
+   aquele — filtrar "slot 4" sem escolher OLT mostra as OLTs contando só o
+   slot 4, em vez de contar tudo e mentir no rótulo. */
+function dgCasa(u, f){
+  const x = dgNum(u.slotPon);
+  if (!x) return null;
+  if (f.loc  && u.local !== f.loc)  return null;
+  if (f.slot && x.s !== Number(f.slot)) return null;
+  if (f.pon  && x.p !== Number(f.pon))  return null;
+  return x;
+}
+function dgChave(nivel){
+  if (nivel === "olt")  return (u) => u.local;
+  if (nivel === "slot") return (u, inc, x) => x.s;
+  if (nivel === "pon")  return (u, inc, x) => x.p;
+  return (u, inc) => inc.inicio.slice(0,10);
+}
+
+function dgAgregar(lista, nivel, f){
+  const chave = dgChave(nivel), m = new Map();
+  lista.forEach(inc => inc.unidades.forEach(u => {
+    const x = dgCasa(u, f); if (!x) return;
+    const k = chave(u, inc, x);
+    let c = m.get(k);
+    if (!c) m.set(k, c = { k, un:0, min:0, inc:new Set(), evInc:{}, evUn:{}, evMin:{} });
+    c.un++; c.min += u.duracaoMin || 0; c.inc.add(inc.id);
+    (c.evInc[inc.evento] || (c.evInc[inc.evento] = new Set())).add(inc.id);
+    c.evUn[inc.evento]  = (c.evUn[inc.evento]  || 0) + 1;
+    c.evMin[inc.evento] = (c.evMin[inc.evento] || 0) + (u.duracaoMin || 0);
+  }));
+  return m;
+}
+
+/* O eixo de dia precisa dos dias VAZIOS: buraco no meio da série é
+   informação ("parou de cair depois do dia 12"), e sem ele a distância
+   entre as colunas mente. Em período muito longo isso vira centenas de
+   colunas de nada, e aí só os dias com dado. */
+function dgDias(m, f){
+  const chaves = [...m.keys()].sort();
+  if (!chaves.length) return [];
+  let de = f.de || chaves[0], ate = f.ate || chaves[chaves.length-1];
+  const a = dData(de + "T00:00"), b = dData(ate + "T00:00");
+  const n = Math.round((b - a)/86400000) + 1;
+  if (n < 1 || n > DG_MAXDIA) return chaves.map(k => m.get(k));
+  const out = [];
+  for (let i = 0; i < n; i++){
+    const k = sData(new Date(a.getTime() + i*86400000));
+    out.push(m.get(k) || { k, un:0, min:0, inc:new Set(), evInc:{}, evUn:{}, evMin:{} });
+  }
+  return out;
+}
+
+function dgPasso(max, med){
+  const ops = med === "min"
+    ? [15,30,60,120,240,480,720,1440,2880,5760,10080,20160,43200,86400,172800]
+    : [1,2,5,10,20,50,100,200,500,1000];
+  for (const p of ops) if (max/p <= 6) return p;
+  return ops[ops.length-1];
+}
+
+const DG_NS = "http://www.w3.org/2000/svg";
+const dgSv = (tag, at) => { const n = document.createElementNS(DG_NS, tag);
+  for (const k in at) n.setAttribute(k, at[k]); return n; };
+
+/* O desenho. Cada coluna leva uma área de clique do tamanho da COLUNA,
+   não da barra: em dia de uma ocorrência a barra tem três pixels, e
+   ninguém acerta três pixels com o mouse. */
+function dgGrafico(dados, med, nivel, rotulo, aoClicar){
+  const M = DG_MED[med];
+  /* Nome de OLT é comprido e a coluna é estreita: cortar em tamanho fixo
+     fazia "INTERVENTORIA" encostar em "ALTER DO CHÃO". O corte sai da
+     largura real da coluna, e quando nem assim cabe o rótulo deita. */
+  const W = 1040, MR = 16, MT = 26;
+  const px0 = (W - 58 - MR)/dados.length;
+  const cabe = Math.max(3, Math.floor(px0/7.2));
+  const maior = dados.reduce((m,d) => Math.max(m, String(rotulo.item(d)).length), 0);
+  const girar = maior > cabe;
+  /* deitado, o rótulo da primeira coluna avança para a esquerda; a margem
+     cresce junto para ele não pintar fora do painel */
+  const ML = girar ? 84 : 58;
+  const MB = girar ? 92 : 56, H = 320 + (girar ? 36 : 0);
+  const PW = W - ML - MR, PH = H - MT - MB;
+  const vals = dados.map(d => M.val(d));
+  const max = Math.max(...vals, 1);
+  const passo = dgPasso(max, med);
+  const tk = []; for (let v = 0; v <= max; v += passo) tk.push(v);
+  if (tk[tk.length-1] < max) tk.push(tk[tk.length-1] + passo);
+  const topo = tk[tk.length-1] || 1;
+  const esc = v => PH - (v/topo*PH);
+  const px = PW/dados.length, lg = Math.min(px*0.64, 48), cx = i => ML + px*i + px/2;
+  const media = vals.reduce((a,b) => a+b, 0) / (vals.length || 1);
+
+  const g = dgSv("svg", { viewBox:"0 0 "+W+" "+H, class:"dg-sv", role:"img",
+    "aria-label": M.rot + " por " + rotulo.eixo });
+
+  tk.forEach(v => {
+    const y = MT + esc(v);
+    g.appendChild(dgSv("line", { class:"dg-gl", x1:ML, y1:y, x2:W-MR, y2:y }));
+    const t = dgSv("text", { class:"dg-ge", x:ML-9, y:y+4 }); t.textContent = M.fmt(v);
+    g.appendChild(t);
+  });
+
+  dados.forEach((d, i) => {
+    const col = dgSv("g", { class:"dg-col" });
+    const x = cx(i) - lg/2;
+    const partes = Object.entries(M.part(d))
+      .filter(([,v]) => v > 0)
+      .sort((a,b) => EVENTOS.indexOf(a[0]) - EVENTOS.indexOf(b[0]));
+    let acc = 0;
+    partes.forEach(([ev, v]) => {
+      const y0 = MT + esc(acc), y1 = MT + esc(acc + v);
+      const alt = Math.max(y0 - y1 - 2, 1);
+      col.appendChild(dgSv("rect", { class:"dg-sg", x:x, y:y1, width:lg, height:alt, rx:2,
+        fill: COR_EV[fatiaDe(ev)] || "var(--neutro)" }));
+      /* o número por tipo só onde cabe — a medida manda, não o palpite */
+      if (alt >= 15 && lg >= 22){
+        const t = dgSv("text", { class:"dg-sn", x:cx(i), y:(y1 + alt/2 + 3.5).toFixed(1) });
+        t.textContent = M.fmt(v);
+        col.appendChild(t);
+      }
+      acc += v;
+    });
+    /* dia sem nada não leva "0" escrito em cima: no eixo de 30 dias isso
+       vira trinta zeros flutuando sobre nada, e a ausência da barra já diz */
+    if (M.val(d) > 0){
+      const tot = dgSv("text", { class:"dg-vl", x:cx(i), y:(MT + esc(M.val(d)) - 7).toFixed(1) });
+      tot.textContent = M.fmt(M.val(d));
+      col.appendChild(tot);
+    }
+    const nome = String(rotulo.item(d));
+    const curto = girar ? nome : (nome.length > cabe ? nome.slice(0, Math.max(1,cabe-1)) + "…" : nome);
+    const rx = dgSv("text", { class:"dg-xr", x:cx(i), y:MT + PH + 18 });
+    if (girar){
+      rx.setAttribute("text-anchor","end");
+      rx.setAttribute("transform","rotate(-38 " + cx(i).toFixed(1) + " " + (MT+PH+18) + ")");
+    }
+    rx.textContent = curto;
+    if (curto !== nome){ const ti = dgSv("title"); ti.textContent = nome; rx.appendChild(ti); }
+    col.appendChild(rx);
+
+    const hit = dgSv("rect", { class:"dg-hit", x:(cx(i) - px/2).toFixed(1), y:MT,
+      width:px.toFixed(1), height:PH + 22 });
+    hit.addEventListener("mousemove", e => dgDica(e, d, nivel, rotulo));
+    hit.addEventListener("mouseleave", tipOff);
+    hit.addEventListener("click", () => { tipOff(); aoClicar(d); });
+    col.appendChild(hit);
+    g.appendChild(col);
+  });
+
+  const ym = MT + esc(media);
+  g.appendChild(dgSv("line", { class:"dg-md", x1:ML, y1:ym, x2:W-MR, y2:ym }));
+  const te = dgSv("text", { class:"dg-eixo", x:ML + PW/2, y:H-10 });
+  te.textContent = rotulo.eixo;
+  g.appendChild(te);
+  return { svg:g, media:media };
+}
+
+/* O tooltip mostra as TRÊS medidas de uma vez: a coluna responde uma, e a
+   pergunta seguinte é quase sempre outra. A comparação com o período
+   anterior mora aqui, e não no gráfico — no gráfico ela era uma linha
+   rente ao chão ocupando altura. */
+let dgAnterior = new Map();
+function dgDica(e, d, nivel, rotulo){
+  tip.replaceChildren();
+  tip.className = "tip diag";
+  tip.appendChild(el("div","dt", rotulo.titulo(d)));
+  const linha = (k, v) => { const r = el("div","dr");
+    r.appendChild(el("span", null, k)); r.appendChild(el("b", null, v)); tip.appendChild(r); };
+  linha("Vezes que caiu", String(d.inc.size));
+  linha("Portas afetadas", String(d.un));
+  linha("Tempo parado", d.min ? fmtDur(Math.round(d.min)) : "—");
+  const ant = dgAnterior.get(String(d.k));
+  if (ant !== undefined) linha("Período anterior", ant + (ant === 1 ? " vez" : " vezes"));
+
+  const partes = Object.entries(DG_MED[dgMedida].part(d)).filter(([,v]) => v > 0)
+    .sort((a,b) => b[1] - a[1]);
+  if (partes.length){
+    tip.appendChild(el("div","dsp"));
+    partes.forEach(([ev, v]) => {
+      const r = el("div","de");
+      const i = el("i"); i.style.background = COR_EV[fatiaDe(ev)] || "var(--neutro)";
+      r.appendChild(i);
+      r.appendChild(el("span", null, ev + " · " + DG_MED[dgMedida].fmt(v)));
+      tip.appendChild(r);
+    });
+  }
+  const pe = rotulo.pe && rotulo.pe(d);
+  if (pe) tip.appendChild(el("div","dpe", pe));
+
+  tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 15, y = e.clientY - h - 12;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 15;
+  if (y < 8) y = e.clientY + 18;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+
+/* Os selects de Slot e PON saem do DADO, não de um intervalo chutado: a
+   base tem slot 16 e PON até 30, e a lista fixa de 1 a 12 do histórico
+   deixava esses fora do alcance do filtro. */
+let dgAssinatura = "";
+function dgOpcoes(){
+  const slots = new Set(), pons = new Set();
+  (PERIODO || []).forEach(inc => inc.unidades.forEach(u => {
+    const x = dgNum(u.slotPon); if (!x) return;
+    slots.add(x.s); pons.add(x.p);
+  }));
+  const ls = [...slots].sort((a,b) => a-b).map(String);
+  const lp = [...pons].sort((a,b) => a-b).map(String);
+  /* o campo se chama OLT; "Todos os locais" veio do molde compartilhado
+     dos selects de local, e é reescrito toda vez que o cadastro recarrega */
+  const o0 = $("dLoc") && $("dLoc").options[0];
+  if (o0 && !o0.value) o0.textContent = "Todas as OLTs";
+
+  const ass = ls.join(",") + "|" + lp.join(",");
+  if (ass === dgAssinatura) return;
+  dgAssinatura = ass;
+  [["dSlot", ls, "Todos"], ["dPon", lp, "Todas"],
+   ["hSlot", ls, "Todos"], ["hPon", lp, "Todas"]].forEach(([id, vals, todos]) => {
+    const sel = $(id); if (!sel) return;
+    const antes = sel.value;
+    /* O valor que está escolhido ENTRA na lista mesmo que o dado novo não
+       o traga mais. Sem isso, uma sincronização podia derrubar o filtro do
+       histórico para "Todos" sem redesenhar a tabela — e aí a tela
+       mostrava uma coisa e o campo dizia outra. */
+    const lista = (antes && vals.indexOf(antes) < 0)
+      ? vals.concat([antes]).sort((a,b) => Number(a) - Number(b)) : vals;
+    selOpts(sel, lista, todos);
+    sel.value = antes;
+  });
+}
+
+function dgRotulos(nivel, f, topPon){
+  /* o nome vai inteiro: quem corta é o gráfico, que é quem sabe a largura
+     da coluna — e que prefere deitar o rótulo a cortá-lo */
+  if (nivel === "olt") return {
+    eixo:"OLT", item:d => String(d.k),
+    titulo:d => String(d.k), pe:() => "clique para ver os slots desta OLT" };
+  /* `topPon` chega pronto do desenho: calcular isto a cada mousemove
+     varria a base inteira por movimento de mouse */
+  if (nivel === "slot") return {
+    eixo:"SLOT", item:d => "SLOT " + p2(d.k), titulo:d => f.loc + " · SLOT " + p2(d.k),
+    pe:d => ((topPon && topPon.get(d.k)) ? topPon.get(d.k) + "\n" : "") +
+            "clique para ver todas as portas deste slot" };
+  if (nivel === "pon") return {
+    eixo:"PON", item:d => "PON " + p2(d.k),
+    titulo:d => f.loc + " · SLOT " + p2(f.slot) + " · PON " + p2(d.k),
+    pe:() => "clique para ver quando esta porta caiu" };
+  return {
+    eixo:"DIA", item:d => p2(dData(d.k+"T00:00").getDate()) + "/" + p2(dData(d.k+"T00:00").getMonth()+1),
+    titulo:d => fmtDHA(d.k + "T00:00").slice(0,10),
+    pe:d => d.inc.size ? "clique para abrir o relatório deste dia" : null };
+}
+
+function desenharDiag(){
+  dgOpcoes();
+  const f = lerFiltro("d");
+  const nivel = dgNivel(f);
+  const lista = aplicar(f);
+  const mapa = dgAgregar(lista, nivel, f);
+
+  /* a comparação do tooltip: a mesma conta, na janela imediatamente
+     anterior e do mesmo tamanho */
+  dgAnterior = new Map();
+  if (f.de && f.ate){
+    const a = dData(f.de + "T00:00"), b = dData(f.ate + "T00:00");
+    const n = Math.round((b - a)/86400000) + 1;
+    const f0 = Object.assign({}, f, {
+      de: sData(new Date(a.getTime() - n*86400000)),
+      ate: sData(new Date(a.getTime() - 86400000)) });
+    dgAgregar(aplicar(f0), nivel, f0).forEach((c, k) => dgAnterior.set(String(k), c.inc.size));
+  }
+
+  const dados = nivel === "dia" ? dgDias(mapa, f)
+    : [...mapa.values()].sort(nivel === "olt" ? (a,b) => DG_MED[dgMedida].val(b) - DG_MED[dgMedida].val(a)
+                                              : (a,b) => a.k - b.k);
+  const corpo = $("dCorpo"); corpo.replaceChildren();
+  sincronizarPresets("dPre", f);
+  dgTrilha(f);
+  $("dMed").querySelectorAll("button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.m === dgMedida)));
+
+  /* ---------- nada para mostrar ---------- */
+  if (!dados.length){
+    $("dSub").textContent = "Sem ocorrência com slot e porta anotados";
+    const v = el("div","vazio");
+    v.appendChild(document.createTextNode(f.loc
+      ? "A OLT " + f.loc + " não teve nenhuma ocorrência com SLOT/PON anotado neste período. "
+      : "Nenhuma ocorrência com SLOT/PON anotado neste período. "));
+    if (f.loc){
+      v.appendChild(el("span", null, "O volume dela aparece em "));
+      v.appendChild(el("b", null, "Locais que mais doem"));
+      v.appendChild(document.createTextNode(", na Visão geral."));
+    }
+    corpo.appendChild(v);
+    return;
+  }
+
+  const visiveis = (nivel === "olt" && !dgTudo) ? dados.slice(0, DG_MOSTRA) : dados;
+
+  /* as portas que mais repetiram em cada slot, uma vez por desenho e sobre
+     a lista JÁ filtrada — a versão anterior varria o período inteiro, e a
+     cada movimento do mouse */
+  let topPon = null;
+  if (nivel === "slot"){
+    const porSlot = new Map();
+    lista.forEach(inc => inc.unidades.forEach(u => {
+      const x = dgCasa(u, f); if (!x) return;
+      let m = porSlot.get(x.s); if (!m) porSlot.set(x.s, m = {});
+      m[x.p] = (m[x.p] || 0) + 1;
+    }));
+    topPon = new Map();
+    porSlot.forEach((m, s) => {
+      const top = Object.entries(m).sort((a,b) => b[1] - a[1]).slice(0,3);
+      if (top.length) topPon.set(s, "PON que mais repetiu: " +
+        top.map(([p,n]) => "PON " + p2(p) + " (" + n + "×)").join(" · "));
+    });
+  }
+  const rot = dgRotulos(nivel, f, topPon);
+  const totInc = new Set(); dados.forEach(d => d.inc.forEach(i => totInc.add(i)));
+  const totUn = dados.reduce((s,d) => s + d.un, 0);
+  $("dSub").textContent = ({
+    olt:  visiveis.length + (visiveis.length === 1 ? " OLT" : " OLTs"),
+    slot: f.loc + " · " + visiveis.length + (visiveis.length === 1 ? " slot" : " slots"),
+    pon:  f.loc + " · SLOT " + p2(f.slot) + " · " + visiveis.length + (visiveis.length === 1 ? " porta" : " portas"),
+    dia:  f.loc + " · SLOT " + p2(f.slot) + " · PON " + p2(f.pon) + " · " + visiveis.length + " dias"
+  })[nivel] + " · " + totInc.size + (totInc.size === 1 ? " incidente" : " incidentes") +
+    " · " + totUn + (totUn === 1 ? " porta afetada" : " portas afetadas");
+
+  const g = dgGrafico(visiveis, dgMedida, nivel, rot, d => dgDescer(nivel, d.k, !d.inc.size));
+  corpo.appendChild(g.svg);
+
+  /* legenda: a cor por tipo e a média escrita, que no gráfico encostava
+     na barra mais alta */
+  const nomes = [];
+  visiveis.forEach(d => Object.entries(DG_MED[dgMedida].part(d)).forEach(([e,v]) => {
+    if (v > 0 && nomes.indexOf(e) < 0) nomes.push(e); }));
+  nomes.sort((a,b) => EVENTOS.indexOf(a) - EVENTOS.indexOf(b));
+  const lg = el("div","dg-lgd");
+  nomes.forEach(n => {
+    const s = el("span");
+    const i = el("i"); i.style.background = COR_EV[fatiaDe(n)] || "var(--neutro)";
+    s.appendChild(i); s.appendChild(document.createTextNode(n));
+    lg.appendChild(s);
+  });
+  const sm = el("span");
+  sm.appendChild(el("i","dg-md2"));
+  sm.appendChild(document.createTextNode("média do nível: "));
+  /* a média quase nunca é inteira, e arredondá-la escrevia "0" num nível
+     que tem ocorrência — uma casa decimal, com vírgula */
+  sm.appendChild(el("b", null, dgMedida === "min" ? DG_MED.min.fmt(g.media)
+    : (Math.round(g.media*10)/10).toFixed(1).replace(".", ",")));
+  lg.appendChild(sm);
+  corpo.appendChild(lg);
+
+  if (nivel === "olt" && dados.length > DG_MOSTRA){
+    const n = el("div","dg-nota");
+    if (dgTudo){
+      n.appendChild(document.createTextNode("Mostrando todas as " + dados.length + " OLTs · "));
+      const b = el("button", null, "ver só as " + DG_MOSTRA + " piores"); b.type = "button";
+      b.addEventListener("click", () => { dgTudo = false; desenharDiag(); });
+      n.appendChild(b);
+    } else {
+      n.appendChild(document.createTextNode("Mostrando as " + DG_MOSTRA + " com mais ocorrências · "));
+      const b = el("button", null, "ver todas (" + dados.length + ")"); b.type = "button";
+      b.addEventListener("click", () => { dgTudo = true; desenharDiag(); });
+      n.appendChild(b);
+    }
+    corpo.appendChild(n);
+  }
+  if (nivel === "dia"){
+    corpo.appendChild(el("div","dg-nota","Clicar numa coluna abre o relatório daquele dia."));
+  }
+}
+
+/* Descer é escrever no filtro — não existe estado de navegação à parte.
+   Se o valor não existir no select (local que saiu do cadastro mas ainda
+   tem incidente no período), a opção é criada: clique que não faz nada é
+   pior do que opção sobrando. */
+function dgPor(id, k){
+  const sel = $(id), v = String(k);
+  sel.value = v;
+  if (sel.value !== v){ sel.appendChild(new Option(v, v)); sel.value = v; }
+}
+function dgDescer(nivel, k, vazio){
+  if (nivel === "olt"){ dgPor("dLoc", k); dgTudo = false; }
+  else if (nivel === "slot") dgPor("dSlot", k);
+  else if (nivel === "pon")  dgPor("dPon", k);
+  else {
+    /* dia sem ocorrência não abre relatório vazio */
+    if (!vazio) abrirRelatorio("d", { de:String(k), ate:String(k) });
+    return;
+  }
+  desenharDiag();
+}
+function dgTrilha(f){
+  const t = $("dTrilha"); t.replaceChildren();
+  const passos = [["Todas as OLTs"]];
+  if (f.loc)  passos.push([f.loc]);
+  if (f.slot) passos.push(["SLOT " + p2(f.slot)]);
+  if (f.pon)  passos.push(["PON " + p2(f.pon)]);
+  passos.forEach(([nome], i) => {
+    if (i) t.appendChild(el("span", null, "›"));
+    if (i === passos.length - 1){ t.appendChild(el("b", null, nome)); return; }
+    const b = el("button", null, nome); b.type = "button";
+    /* subir limpa este degrau e todos os de baixo */
+    b.addEventListener("click", () => {
+      ["dLoc","dSlot","dPon"].slice(i).forEach(id => $(id).value = "");
+      dgTudo = false; desenharDiag();
+    });
+    t.appendChild(b);
+  });
+}
+
+$("dMed").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  dgMedida = b.dataset.m; desenharDiag();
+}));
+["dEv","dLoc","dSlot","dPon"].forEach(id => $(id).addEventListener("change", () => {
+  /* mexer num filtro de cima zera os de baixo: MAICA › SLOT 04 e depois
+     trocar para EUROPCAR deixaria um slot que pode nem existir lá */
+  if (id === "dLoc"){ $("dSlot").value = ""; $("dPon").value = ""; }
+  if (id === "dSlot") $("dPon").value = "";
+  dgTudo = false; desenharDiag();
+}));
+["dDe","dAte"].forEach(id => $(id).addEventListener("change", () => garantirJanela(desenharDiag)));
+$("btnFiltroD").addEventListener("click", () => garantirJanela(desenharDiag));
+$("dRel").addEventListener("click", () => abrirRelatorio("d"));
+
 function sincronizarPresets(grupo, f){
   const hoje = sData(agora());
   document.querySelectorAll("#" + grupo + " button").forEach(b => {
@@ -2866,6 +3470,7 @@ function ligarPresets(grupo, prefixo, redesenhar){
 }
 ligarPresets("gPre","g", () => garantirJanela(() => desenharGeral(true)));
 ligarPresets("hPre","h", () => garantirJanela(() => desenharHist(true)));
+ligarPresets("dPre","d", () => garantirJanela(desenharDiag));
 
 /* ================================================================== */
 /*  Atualizar / PDF / tema                                            */
@@ -2976,7 +3581,7 @@ function chegouDadoNovo(){
   const y = window.scrollY;
   guardar();
   marcarSelo();
-  desenharAgora(); desenharGeral(); desenharHist();
+  desenharAgora(); desenharGeral(); desenharHist(); desenharDiag();
   mostrarEstado();
   if (window.scrollY !== y) window.scrollTo(0, y);
 }
@@ -3102,7 +3707,7 @@ function tabelaEmUso(){
 function aplicarPeriodoPendente(){
   if (!periodoPendente) return;
   periodoPendente = false;
-  desenharGeral(); desenharHist();
+  desenharGeral(); desenharHist(); desenharDiag();
   mostrarEstado();
 }
 
@@ -3219,7 +3824,7 @@ async function rodarSincronizacao(silencioso, oQue){
       desenharGeralSemTabela();
     } else {
       periodoPendente = false;
-      desenharGeral(); desenharHist();
+      desenharGeral(); desenharHist(); desenharDiag();
     }
     if (document.body.classList.contains("apres")) desenharApres();
   } catch (e){
@@ -3258,7 +3863,7 @@ function desenharGeralSemTabela(){
    Entre as duas, vale a janela mais larga: senão mexer no filtro do
    histórico deixaria a visão geral sem dado, ou o contrário. */
 function janelaNecessaria(){
-  const alvos = ["g","h"].map(p => janelaPara(lerFiltro(p)));
+  const alvos = ["g","h","d"].map(p => janelaPara(lerFiltro(p)));
   if (alvos.some(a => a.de === "")) return { de: "", ate: "" };
   return { de: alvos.map(a => a.de).sort()[0], ate: "" };
 }
@@ -3411,12 +4016,16 @@ function larguraColuna(linhas, j){
    ================================================================== */
 let RELAT = { lista: [], titulo: "", filtro: "" };
 
-function abrirRelatorio(prefixo){
-  const f = lerFiltro(prefixo);
+/* `ajuste` sobrepõe campos do filtro só para esta abertura — é o que deixa
+   clicar num dia do diagnóstico abrir o relatório daquele dia sem mexer no
+   período que está na tela. */
+function abrirRelatorio(prefixo, ajuste){
+  const f = Object.assign(lerFiltro(prefixo), ajuste || {});
   const lista = aplicar(f);
   RELAT = {
     lista: lista,
-    titulo: prefixo === "h" ? "Histórico geral" : "Visão geral",
+    titulo: prefixo === "h" ? "Histórico geral"
+          : prefixo === "d" ? "Diagnóstico de OLTs" : "Visão geral",
     filtro: textoFiltro(f)
   };
   $("relTit").textContent = "Relatório — " + RELAT.titulo;
@@ -3436,7 +4045,8 @@ function abrirRelatorio(prefixo){
       cab.appendChild(el("span","rloc", inc.locaisTexto));
       cab.appendChild(el("span","rid", fmtDHA(inc.inicio)));
       item.appendChild(cab);
-      item.appendChild(detalhe(inc));    /* a mesma peça da linha expandida */
+      /* no diagnóstico, as unidades que casam com o filtro vêm marcadas */
+      item.appendChild(detalhe(inc, prefixo === "d" ? (u => !!dgCasa(u, f)) : null));
       corpo.appendChild(item);
     });
   }
@@ -4361,6 +4971,12 @@ addEventListener("keydown", e => {
      centenas de KB logo no primeiro carregamento, sem ninguém pedir. */
   $("gDe").value = sData(de30); $("gAte").value = sData(hoje);
   $("hDe").value = sData(de30); $("hAte").value = sData(hoje);
+  /* O diagnóstico também nasce com data, e pelo mesmo motivo: ele entra na
+     conta de janelaNecessaria, e campo vazio ali significaria "a base
+     inteira" — o painel passaria a puxar tudo em todo carregamento, mesmo
+     sem ninguém abrir a aba. Nasce com os 7 dias que são o padrão dela. */
+  $("dDe").value = sData(new Date(hoje.getTime() - 6*86400000));
+  $("dAte").value = sData(hoje);
   marcarSelo();
 
   /* Se há cópia guardada, a tela nasce pronta e só vai à planilha se a
@@ -4368,7 +4984,7 @@ addEventListener("keydown", e => {
      cadastro sai no mesmo lote, porque a lista de eventos está vazia. */
   if (recuperarGuardado()){
     marcarSelo();
-    desenharAgora(); desenharGeral(); desenharHist();
+    desenharAgora(); desenharGeral(); desenharHist(); desenharDiag();
     mostrarEstado();
   } else {
     sincronizar(false);
