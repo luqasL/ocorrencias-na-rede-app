@@ -645,12 +645,16 @@ body.apres #apres{display:grid;}
    sem ninguém precisar ler número nenhum. É a mesma régua do registrador,
    o que também aproxima as duas telas. */
 .ap-grade{display:flex;gap:.3vw;flex-wrap:wrap;}
+/* Sem borda: a moldura usava --fora-risco/--ok-risco, que só existem no tema
+   claro — no escuro a célula ganhava um contorno rosa-claro herdado, que de
+   longe virava "quadrado com borda branca". O preenchimento sólido sozinho
+   já separa uma porta da outra, e sem ele a cor respira mais. */
 .ap-pon{min-width:2.1vw;height:3.4vh;padding:0 .35vw;border-radius:var(--r);
-  display:grid;place-items:center;border:1px solid;
+  display:grid;place-items:center;
   font-family:var(--mono);font-variant-numeric:tabular-nums;
   font-size:clamp(10px,1.45vh,20px);font-weight:700;}
-.ap-pon.fora{background:var(--fora-track);border-color:var(--fora-risco);color:var(--pon-fora);}
-.ap-pon.ok{background:var(--ok-track);border-color:var(--ok-risco);color:var(--pon-ok);}
+.ap-pon.fora{background:var(--fora-track);color:var(--pon-fora);}
+.ap-pon.ok{background:var(--ok-track);color:var(--pon-ok);}
 .ap-slots{display:flex;flex-direction:column;gap:.6vh;flex:0 0 auto;}
 .ap-slots .lin{display:flex;align-items:center;gap:.8vw;min-width:0;}
 .ap-slots .lin .s{font-family:var(--mono);font-size:clamp(10px,1.35vh,18px);font-weight:700;
@@ -713,11 +717,41 @@ body.apres #apres{display:grid;}
 .ap-tri div{background:var(--surface-2);border-radius:var(--r-lg);padding:1vh 1vw;}
 .ap-tri .v{font-size:clamp(17px,3.1vh,44px);font-weight:700;letter-spacing:-.025em;line-height:1;}
 .ap-tri .k{font-size:clamp(9px,1.2vh,16px);color:var(--ink-3);margin-top:.5vh;}
+/* INCIDENTES POR DIA — barra empilhada por tipo de evento.
+   Antes toda barra era --s1: a altura dizia "quantos", mas nada dizia "do
+   quê". Agora cada pedaço leva a cor do tipo, a MESMA do resto do painel
+   (COR_EV, cor por entidade e não por posição no ranking), para que azul
+   signifique a mesma coisa nas duas caixas e de um período para o outro.
+   O total vai escrito em cima da barra — a altura responde rápido, o
+   número responde exato — e o detalhe por tipo vai dentro do pedaço,
+   quando couber (quem decide é a medida, não um palpite de porcentagem). */
 .ap-cols{flex:1 1 auto;display:flex;align-items:flex-end;gap:.28vw;min-height:0;}
-.ap-cols i{flex:1 1 0;background:var(--s1);border-radius:3px 3px 0 0;min-height:3px;}
-.ap-cols i.z{background:var(--neutro-2);}
-.ap-colr{display:flex;justify-content:space-between;font-family:var(--mono);
-  font-size:clamp(9px,1.2vh,16px);color:var(--ink-3);margin-top:.7vh;}
+.ap-cols .col{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;
+  justify-content:flex-end;}
+.ap-cols .tot{flex:0 0 auto;text-align:center;line-height:1;margin-bottom:.45vh;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;
+  font-size:clamp(8px,1.25vh,17px);color:var(--ink-2);}
+.ap-cols .barra{flex:0 1 auto;display:flex;flex-direction:column-reverse;gap:1.5px;
+  border-radius:3px 3px 0 0;overflow:hidden;min-height:3px;}
+.ap-cols .barra b{display:grid;place-items:center;min-height:2px;overflow:hidden;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;
+  font-size:clamp(7px,1.05vh,14px);color:#fff;}
+.ap-cols .col.z .barra{background:var(--neutro-2);}
+/* A régua: antes só as pontas tinham data, e em cinza-3. Agora uma marca a
+   cada poucos dias, alinhada à própria barra, com tinta de texto. */
+.ap-colr{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:.28vw;
+  font-family:var(--mono);font-size:clamp(8px,1.25vh,17px);color:var(--ink-2);
+  margin-top:.7vh;}
+.ap-colr span{text-align:center;white-space:nowrap;overflow:visible;}
+/* A legenda vive DENTRO do card do gráfico: o card precisa se explicar
+   sozinho, sem depender da caixa vizinha estar na mesma tela. */
+.ap-cleg{display:flex;flex-wrap:wrap;gap:.35vh 1vw;margin-top:.9vh;}
+.ap-cleg span{display:inline-flex;align-items:center;gap:.45vw;white-space:nowrap;
+  font-size:clamp(9px,1.3vh,17px);color:var(--ink-2);}
+.ap-cleg i{width:1.1vh;height:1.1vh;min-width:9px;min-height:9px;border-radius:3px;flex:0 0 auto;}
+.ap-quadro h3 .per{font-family:var(--mono);font-weight:500;letter-spacing:0;
+  font-size:clamp(9px,1.25vh,16px);color:var(--ink-2);background:var(--well);
+  border-radius:99px;padding:.25vh .7vw;margin-left:.8vw;vertical-align:middle;}
 .ap-pilha{display:flex;height:3.2vh;gap:3px;border-radius:var(--r);overflow:hidden;margin:.6vh 0 1vh;}
 .ap-pilha i{display:grid;place-items:center;font-family:var(--mono);font-weight:700;
   font-size:clamp(10px,1.5vh,20px);color:#fff;}
@@ -732,15 +766,36 @@ body.apres #apres{display:grid;}
 .ap-mapa .cab{display:flex;align-items:baseline;gap:1vw;margin-bottom:.8vh;}
 .ap-mapa .cab h4{font-size:clamp(9px,1.2vh,15px);letter-spacing:.09em;text-transform:uppercase;
   color:var(--ink-3);font-weight:700;}
-.ap-mapa .cab span{margin-left:auto;font-size:clamp(10px,1.3vh,17px);color:var(--ink-3);}
-.ap-celas{display:grid;grid-template-columns:repeat(20,minmax(0,1fr));gap:.3vw;}
-@media (max-width:1100px){ .ap-celas{grid-template-columns:repeat(10,minmax(0,1fr));} }
-.ap-cel{height:3vh;min-height:22px;border-radius:var(--r);background:var(--surface);
+/* A LEGENDA é o que torna a cor acessível: quem não separa vermelho de
+   âmbar lê o nome do estado ao lado da bolinha, na mesma tela. */
+/* .mapleg e não .leg: lá em cima existe um .leg{flex-direction:column} para a
+   legenda de tipos do painel, e aquele column vencia — a legenda saía em
+   três linhas empilhadas no canto. Mesma família do .ap-ic/.ic de antes. */
+.ap-mapa .cab .mapleg{margin-left:auto;display:flex;align-items:center;gap:1.2vw;}
+.ap-mapa .cab .mapleg span{display:inline-flex;align-items:center;gap:.45vw;white-space:nowrap;
+  font-size:clamp(10px,1.35vh,18px);color:var(--ink-2);}
+.ap-mapa .cab .mapleg i{width:1.15vh;height:1.15vh;min-width:9px;min-height:9px;
+  border-radius:3px;flex:0 0 auto;}
+/* Só aparece no dia em que há mais locais em alerta do que posições. */
+.ap-mapa .cab .mapleg .mais{font-weight:700;color:var(--atencao);background:var(--aten-track);
+  border-radius:99px;padding:.2vh .8vw;}
+/* VINTE POSIÇÕES, não quarenta células.
+   Mostrar os 40 de uma vez obrigava a célula a ser minúscula — era a queixa
+   original. Com 20 posições a célula dobra de tamanho no MESMO espaço, e a
+   composição é que muda: quem abre alerta entra tomando a posição de quem
+   está normal há mais tempo (ver faixaLocais). O tamanho da faixa nunca
+   muda, em dia calmo ou em dia de pico. */
+.ap-celas{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:.45vw;}
+.ap-cel{min-height:4vh;border-radius:var(--r);background:var(--surface);
   border:1px solid var(--hair);display:grid;place-items:center;overflow:hidden;
-  font-family:var(--mono);font-size:clamp(7px,.95vh,12px);color:var(--ink-3);
-  padding:0 .2vw;white-space:nowrap;}
-.ap-cel.aten{background:var(--aten-track);border-color:var(--atencao);color:var(--ink);font-weight:700;}
-.ap-cel.fora{background:var(--fora-track);border-color:var(--fora);color:var(--ink);font-weight:700;}
+  font-family:var(--mono);font-size:clamp(9px,1.5vh,20px);color:var(--ink-2);
+  padding:.55vh .4vw;white-space:nowrap;letter-spacing:.02em;
+  transition:background 420ms ease,border-color 420ms ease,color 420ms ease;}
+/* o nome vai dentro de um span porque reticências não funcionam direto no
+   item de grade — e nome cortado no meio da palavra parece defeito de tela */
+.ap-cel span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+.ap-cel.atencao{background:var(--atencao);border-color:var(--atencao);color:#1a1205;font-weight:700;}
+.ap-cel.fora{background:var(--fora);border-color:var(--fora);color:#fff;font-weight:700;}
 .ap-sair{position:fixed;right:14px;bottom:14px;z-index:101;opacity:0;pointer-events:none;}
 body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
@@ -1054,7 +1109,7 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
   <div class="ap-corpo" id="apCorpo"></div>
 
   <div class="ap-mapa">
-    <div class="cab"><h4>Os <span id="apMapaN">40</span> locais</h4><span id="apMapaK">—</span></div>
+    <div class="cab"><h4>Os <span id="apMapaN">40</span> locais<span id="apMapaT"></span></h4><div class="mapleg" id="apMapaK"></div></div>
     <div class="ap-celas" id="apCelas"></div>
   </div>
 </div>
@@ -2191,8 +2246,22 @@ function segundaDe(d){
   return x;
 }
 function calcTendencia(lista, f){
-  const por = {};
-  lista.forEach(inc => { const d = inc.inicio.slice(0,10); por[d] = (por[d]||0) + 1; });
+  const por = {}, porTipo = {};
+  lista.forEach(inc => {
+    const d = inc.inicio.slice(0,10);
+    por[d] = (por[d]||0) + 1;
+    /* a quebra por tipo vai junto, na MESMA fatia que o resto do painel usa
+       (os 7 tons canônicos + Outros) — é ela que pinta a barra empilhada do
+       modo apresentação. Quem não precisa dela simplesmente ignora o campo. */
+    const nm = fatiaDe(inc.evento);
+    const t = porTipo[d] || (porTipo[d] = {});
+    t[nm] = (t[nm]||0) + 1;
+  });
+  const somaTipos = (alvo, k) => {
+    const t = porTipo[k];
+    if (t) for (const nm in t) alvo[nm] = (alvo[nm]||0) + t[nm];
+    return alvo;
+  };
   const chaves = Object.keys(por).sort();
   let ini = f.de || chaves[0], fim = f.ate || chaves[chaves.length-1];
   if (!ini || !fim) return [];
@@ -2205,7 +2274,8 @@ function calcTendencia(lista, f){
     for (let i = 0; i < dias; i++){
       const d = new Date(a.getTime() + i*86400000);
       const k = sData(d);
-      out.push({dia:k, n: por[k]||0, rot: p2(d.getDate())+"/"+p2(d.getMonth()+1), balde:balde});
+      out.push({dia:k, n: por[k]||0, tipos: somaTipos({}, k),
+                rot: p2(d.getDate())+"/"+p2(d.getMonth()+1), balde:balde});
     }
     return out;
   }
@@ -2222,14 +2292,18 @@ function calcTendencia(lista, f){
   while (cursor <= b){
     const fimBalde = proximo(cursor);
     let n = 0;
+    const tipos = {};
     for (let d = new Date(cursor.getTime()); d < fimBalde; d.setDate(d.getDate()+1)){
       if (d < a || d > b) continue;
-      n += por[sData(d)] || 0;
+      const k = sData(d);
+      n += por[k] || 0;
+      somaTipos(tipos, k);
     }
     const ate = new Date(fimBalde.getTime() - 86400000);
     out.push({
       dia: sData(cursor),
       n: n,
+      tipos: tipos,
       rot: balde === BALDE.semana
         ? p2(cursor.getDate())+"/"+p2(cursor.getMonth()+1)
         : MES_CURTO[cursor.getMonth()]+"/"+String(cursor.getFullYear()).slice(2),
@@ -3614,7 +3688,13 @@ function rolarObs(){
   [...document.querySelectorAll("#apCorpo .ap-obs")].forEach(cx => {
     const txt = cx.querySelector(".txt");
     const ls = txt ? linhasDe(txt) : [];
-    if (!ls.length || ls[0].baixo > vaoObs(cx) + 1) cx.remove();
+    if (!ls.length || ls[0].baixo > vaoObs(cx) + 1){ cx.remove(); return; }
+    /* .so1 = incidente grave. Aqui é onde "obs pequena de uma linha" vira
+       regra: uma linha fica, mais de uma sai inteira. A conta é feita no
+       texto renderizado, e não por contagem de caracteres, porque quantas
+       linhas o texto ocupa depende da fonte e da largura do cartão — que
+       mudam com o tamanho da TV. */
+    if (cx.classList.contains("so1") && ls.length > 1) cx.remove();
   });
 
   /* 2ª passada: corta no fim de uma linha real e, se sobrou texto, anda uma
@@ -3701,6 +3781,145 @@ function quadroResolvidos(lista){
     q.appendChild(lin);
   });
   return q;
+}
+
+/* ================================================================== */
+/*  A faixa de locais: 20 posições, composição que gira                */
+/* ================================================================== */
+/* Mostrar os 40 locais de uma vez obrigava a célula a ser minúscula, que foi
+   a queixa de origem. A faixa agora tem 20 POSIÇÕES — tamanho fixo, em dia
+   calmo e em dia de pico — e o que muda é quem ocupa cada uma:
+
+   · começa com os 20 primeiros locais, a mesma ordem que a faixa já tinha;
+   · quem abre alerta e está fora da faixa ENTRA, tomando a posição de quem
+     está normal há mais tempo. Alerta nunca desaloja alerta;
+   · quem normaliza NÃO sai: fica na posição e volta à cor dos normais. Só
+     perde o lugar depois, se outro alerta precisar e ele for o normal mais
+     antigo;
+   · os afetados são desenhados na frente (grave, depois instável, mais
+     antigo primeiro — a mesma régua dos cartões logo acima), e os normais
+     seguem na ordem do cadastro;
+   · mais locais em alerta do que posições: a faixa continua com 20 e a
+     cabeceira diz quantos ficaram de fora;
+   · e NADA muda na tela antes de 30 segundos corridos no estado novo — cor
+     ou troca de posição, a mesma regra. Alerta que abre e fecha em dez
+     segundos não faz a faixa piscar.                                     */
+const AP_POS  = 20;      /* posições na faixa */
+const AP_HIST = 30000;   /* histerese: 30s para QUALQUER mudança na faixa */
+let apFaixa = null;      /* [{local, normalDesde}] — uma entrada por posição */
+let apEstab = new Map(); /* local -> {vis, cand, desde}: o estado já estável */
+let apFaixaTimer = null, apFaixaMapa = null;
+
+/* O estado ESTÁVEL de cada local. Um estado novo só vira verdade na tela
+   depois de se manter AP_HIST sem voltar atrás. Devolve quanto falta para a
+   próxima virada, para a faixa se redesenhar sozinha na hora certa — sem
+   isso uma mudança esperaria o próximo giro de slide, até 25s depois. */
+function estabilizarFaixa(mapa, t){
+  let proximo = Infinity;
+  Object.values(mapa).forEach(m => {
+    let e = apEstab.get(m.local);
+    if (!e){ apEstab.set(m.local, {vis:m.estado, cand:m.estado, desde:0, inicio:m.desde || ""}); return; }
+    if (m.estado === e.vis){ e.cand = e.vis; e.desde = 0; return; }
+    if (m.estado !== e.cand){ e.cand = m.estado; e.desde = t; }
+    const falta = e.desde + AP_HIST - t;
+    /* o `desde` do incidente é congelado junto com o estado: a ORDEM dentro
+       do bloco afetado também não pode andar antes dos 30s, senão duas
+       células trocam de lugar sem que nada tenha mudado na tela */
+    if (falta <= 0){ e.vis = e.cand = m.estado; e.desde = 0; e.inicio = m.desde || ""; }
+    else proximo = Math.min(proximo, falta);
+  });
+  return proximo;
+}
+
+/* Quem ocupa cada posição, nesta volta. */
+function faixaLocais(mapa){
+  const t = Date.now();
+  const proximo = estabilizarFaixa(mapa, t);
+  const vis = l => (apEstab.get(l) || {vis:"ok"}).vis;
+  const desdeDe = l => (apEstab.get(l) || {}).inicio || "9";
+  const pos = Math.min(AP_POS, LOCAIS.length);
+
+  if (!apFaixa || !apFaixa.length) apFaixa = LOCAIS.slice(0, pos).map(l => ({local:l, normalDesde:t}));
+  while (apFaixa.length < pos) apFaixa.push({local:null, normalDesde:0});
+  while (apFaixa.length > pos) apFaixa.pop();
+  /* local que saiu do cadastro deixa a posição vaga */
+  apFaixa.forEach(p => { if (p.local && LOCAIS.indexOf(p.local) < 0) p.local = null; });
+  /* e posição vaga é repovoada pelo cadastro — senão um recarregamento de
+     listas (ou uma lista que cresceu de 15 para 40 locais) deixaria buracos
+     permanentes na faixa, só preenchidos por quem viesse a dar defeito */
+  if (apFaixa.some(p => !p.local)){
+    const presentes = new Set(apFaixa.map(p => p.local).filter(Boolean));
+    const sobrando = LOCAIS.filter(l => !presentes.has(l));
+    apFaixa.forEach(p => { if (!p.local && sobrando.length){ p.local = sobrando.shift(); p.normalDesde = t; } });
+  }
+
+  /* desde quando cada posição está em paz — é por aqui que se escolhe quem cede */
+  apFaixa.forEach(p => {
+    if (p.local && vis(p.local) !== "ok") p.normalDesde = 0;
+    else if (!p.normalDesde) p.normalDesde = t;
+  });
+
+  /* quem está em alerta e fora da faixa, na régua dos cartões: grave
+     primeiro, e dentro de cada grupo o mais antigo primeiro */
+  const dentro = new Set(apFaixa.map(p => p.local).filter(Boolean));
+  const fila = LOCAIS.map(l => mapa[l])
+    .filter(m => m && vis(m.local) !== "ok" && !dentro.has(m.local))
+    .sort((a,b) => ((vis(b.local) === "fora") - (vis(a.local) === "fora"))
+                || (desdeDe(a.local) < desdeDe(b.local) ? -1 : 1));
+
+  let sobra = 0;
+  fila.forEach(m => {
+    let alvo = null, pior = Infinity;
+    apFaixa.forEach(p => {
+      if (p.local && vis(p.local) !== "ok") return;   /* alerta não cede lugar */
+      const quando = p.local ? p.normalDesde : -1;    /* posição vaga cede primeiro */
+      if (quando < pior){ pior = quando; alvo = p; }
+    });
+    if (!alvo){ sobra++; return; }                    /* mais alertas que posições */
+    alvo.local = m.local; alvo.normalDesde = 0;
+  });
+
+  const peso = l => vis(l) === "fora" ? 0 : vis(l) === "atencao" ? 1 : 2;
+  const ordem = apFaixa.map(p => p.local).filter(Boolean).sort((a,b) =>
+    peso(a) - peso(b) || (peso(a) < 2
+      ? (desdeDe(a) < desdeDe(b) ? -1 : 1)
+      : LOCAIS.indexOf(a) - LOCAIS.indexOf(b)));
+
+  return { ordem, sobra, proximo, estado: vis };
+}
+
+/* Pinta a faixa reaproveitando as mesmas 20 células: elemento novo não
+   transita, e é a transição que faz um local "chegar" e "normalizar" em vez
+   de a tela trocar de conteúdo num salto. */
+function pintarFaixa(mapa){
+  apFaixaMapa = mapa;
+  clearTimeout(apFaixaTimer); apFaixaTimer = null;
+  const r = faixaLocais(mapa);
+  const pos = Math.min(AP_POS, LOCAIS.length);
+
+  const celas = $("apCelas");
+  while (celas.children.length < pos){
+    const c = el("div","ap-cel"); c.appendChild(el("span")); celas.appendChild(c);
+  }
+  while (celas.children.length > pos) celas.lastChild.remove();
+  [...celas.children].forEach((c, i) => {
+    const l = r.ordem[i] || "";
+    const est = l ? r.estado(l) : "ok";
+    const cls = "ap-cel" + (est === "ok" ? "" : " " + est);
+    if (c.className !== cls) c.className = cls;
+    const nome = c.firstChild;
+    if (nome.textContent !== l) nome.textContent = l;
+    c.title = l ? l + " — " + (est === "fora" ? "sem sinal"
+                             : est === "atencao" ? "instável" : "normal") : "";
+  });
+
+  /* Enquanto houver mudança esperando os 30s, a faixa marca hora para si
+     mesma: assim a virada acontece quando o tempo fecha, e não no próximo
+     giro de slide. */
+  if (r.proximo < Infinity && document.body.classList.contains("apres"))
+    apFaixaTimer = setTimeout(() => { if (apFaixaMapa) pintarFaixa(apFaixaMapa); },
+                              Math.max(250, r.proximo + 60));
+  return r;
 }
 
 function desenharApres(){
@@ -3806,7 +4025,12 @@ function desenharApres(){
         }
         if (idx < CHEIOS){
           const o = obsApres(inc.observacao);
-          if (o) meio.appendChild(o);
+          /* Incidente GRAVE: a observação só fica se for curta — o espaço
+             disputado é o da grade de portas, e num local sem sinal a grade
+             é o que importa. Incidente BRANDO: a observação fica como
+             sempre foi, do tamanho que for. Quem decide "curta" é a medida
+             do texto já renderizado, em rolarObs. */
+          if (o){ if (grave) o.classList.add("so1"); meio.appendChild(o); }
         }
         card.appendChild(meio);
 
@@ -3861,10 +4085,24 @@ function desenharApres(){
     const soma = fechados.reduce((s,i) => s+i.duracaoMin, 0);
     const dias = TEND.slice(-30);
     const pico = dias.reduce((a,d) => d.n > a.n ? d : a, {n:0,rot:""});
-    esq.appendChild(el("h3","","Incidentes por dia"));
+    /* o balde manda no título: com período longo a barra deixa de ser um dia
+       e vira semana ou mês, e dizer "por dia" aí seria mentira */
+    const bal = dias.length ? dias[0].balde : BALDE.dia;
+    const h3 = el("h3","","Incidentes por " + bal);
+    /* O PERÍODO DO GRÁFICO, escrito no próprio cabeçalho: o cartão precisa
+       dizer de quando ele fala sem depender do alto da página, que nem
+       sempre está no campo de visão de quem olha a TV de longe. */
+    if (dias.length){
+      const dmy = s => s.slice(8,10) + "/" + s.slice(5,7) + "/" + s.slice(0,4);
+      const ini = dias[0].dia;
+      const fim = bal === BALDE.dia ? dias[dias.length-1].dia
+                                    : (f.ate || dias[dias.length-1].dia);
+      h3.appendChild(el("span","per", dmy(ini) + " – " + dmy(fim)));
+    }
+    esq.appendChild(h3);
     esq.appendChild(el("div","sub", lista.length + " no período" +
       (pico.n ? " · pico de " + pico.n + " em " + pico.rot : "") +
-      (dias.length ? " · média de " + (lista.length/dias.length).toFixed(1).replace(".",",") + " por dia" : "")));
+      (dias.length ? " · média de " + (lista.length/dias.length).toFixed(1).replace(".",",") + " por " + bal : "")));
     const tri = el("div","ap-tri");
     [[String(lista.length),"incidentes"],
      [fechados.length ? fmtDur(Math.round(soma/fechados.length)) : "—","MTTR por incidente"],
@@ -3875,18 +4113,60 @@ function desenharApres(){
       tri.appendChild(d);
     });
     esq.appendChild(tri);
+    /* Os tipos presentes, na ORDEM CANÔNICA (a do cadastro), não na ordem de
+       frequência: a pilha precisa empilhar igual todo dia, senão a mesma cor
+       muda de altura de um dia para o outro sem a quantidade ter mudado. */
+    const tiposNaTela = [...new Set(EVENTOS.slice(0, MAX_TONS).concat([OUTROS]))]
+      .filter(nm => dias.some(d => d.tipos && d.tipos[nm]));
+
     const maxN = Math.max(...dias.map(d => d.n), 1);
+    const ALT = 88;   /* a barra vai até 88% da altura; o resto é do total escrito em cima */
     const cols = el("div","ap-cols");
     dias.forEach(d => {
-      const i = el("i", d.n ? "" : "z");
-      i.style.height = d.n ? (d.n/maxN*100).toFixed(1)+"%" : "2%";
-      cols.appendChild(i);
+      const col = el("div","col" + (d.n ? "" : " z"));
+      col.appendChild(el("div","tot", d.n ? String(d.n) : ""));
+      const barra = el("div","barra");
+      barra.style.height = (d.n ? Math.max(d.n/maxN*ALT, 1.5) : 1).toFixed(2) + "%";
+      /* column-reverse: o primeiro da ordem canônica fica embaixo */
+      if (d.n) tiposNaTela.forEach(nm => {
+        const c = (d.tipos || {})[nm] || 0;
+        if (!c) return;
+        const seg = el("b", null, String(c));
+        seg.style.flex = c + " 1 0";
+        seg.style.background = COR_EV[nm] || "var(--neutro)";
+        seg.title = nm + ": " + c;
+        barra.appendChild(seg);
+      });
+      col.appendChild(barra);
+      col.title = d.rot + " — " + d.n + (d.n === 1 ? " incidente" : " incidentes");
+      cols.appendChild(col);
     });
     esq.appendChild(cols);
+
+    /* A RÉGUA, uma marca a cada poucas barras e alinhada à barra que nomeia
+       — antes só as pontas tinham data, o que obrigava a contar colunas. */
     const cr = el("div","ap-colr");
-    cr.appendChild(el("span", null, dias.length ? dias[0].rot : ""));
-    cr.appendChild(el("span", null, dias.length ? dias[dias.length-1].rot : ""));
+    const passo = Math.max(1, Math.round(dias.length / 7));
+    dias.forEach((d, i) => {
+      const ult = i === dias.length - 1;
+      const marca = (i % passo === 0) || (ult && (i % passo) * 2 >= passo);
+      cr.appendChild(el("span", null, marca ? d.rot : ""));
+    });
     esq.appendChild(cr);
+
+    /* A LEGENDA dentro do próprio cartão: as mesmas cores do painel inteiro,
+       com o nome escrito ao lado — o cartão se explica sozinho. */
+    if (tiposNaTela.length){
+      const lg = el("div","ap-cleg");
+      tiposNaTela.forEach(nm => {
+        const s = el("span");
+        const pt = el("i"); pt.style.background = COR_EV[nm] || "var(--neutro)";
+        s.appendChild(pt);
+        s.appendChild(document.createTextNode(nm));
+        lg.appendChild(s);
+      });
+      esq.appendChild(lg);
+    }
     per.appendChild(esq);
 
     const dir = el("div","ap-dir");
@@ -3925,17 +4205,23 @@ function desenharApres(){
     q2.appendChild(el("h3","","Por tipo de evento"));
     q2.appendChild(el("div","sub", lista.length + " incidentes em " + evs.length +
       (evs.length === 1 ? " tipo" : " tipos")));
+    /* A cor vem do TIPO (COR_EV), não da posição no ranking. Antes era
+       var(--s1), --s2… pela ordem de frequência: num mês SINISTRO era azul,
+       no mês seguinte podia ser laranja, e a barra por dia aqui do lado
+       usaria outra cor para a mesma coisa. Agora as duas caixas e o painel
+       inteiro falam a mesma língua. */
+    const corDe = ev => COR_EV[fatiaDe(ev)] || "var(--neutro)";
     const pil = el("div","ap-pilha");
-    evs.forEach(([ev,c],i) => {
+    evs.forEach(([ev,c]) => {
       const s = el("i", null, c >= Math.max(2, lista.length*.06) ? String(c) : "");
       s.style.flex = String(c);
-      s.style.background = "var(--s" + Math.min(i+1,7) + ")";
+      s.style.background = corDe(ev);
       pil.appendChild(s);
     });
     q2.appendChild(pil);
-    evs.slice(0,5).forEach(([ev,c],i) => {
+    evs.slice(0,5).forEach(([ev,c]) => {
       const l = el("div","ap-leg2");
-      const pt = el("span","pt"); pt.style.background = "var(--s" + Math.min(i+1,7) + ")";
+      const pt = el("span","pt"); pt.style.background = corDe(ev);
       l.appendChild(pt);
       l.appendChild(el("span","nm", ev));
       l.appendChild(el("span","v", Math.round(c/lista.length*100) + "%"));
@@ -3944,20 +4230,49 @@ function desenharApres(){
     dir.appendChild(q2);
     per.appendChild(dir);
     corpo.appendChild(per);
+
+    /* O número dentro do pedaço só fica onde CABE — e quem decide é a medida,
+       não um palpite de porcentagem: a barra é dimensionada em % da altura da
+       tela, então o mesmo dia que comporta o número na TV de 55" não comporta
+       num monitor pequeno. O que sai da vista continua no title. */
+    requestAnimationFrame(() => {
+      document.querySelectorAll("#apCorpo .ap-cols .barra b").forEach(seg => {
+        /* a medida tem de acompanhar a escala: a fonte é clamp(...,1.05vh,...),
+           então 13px fixo acertaria no monitor e erraria na TV 4K, onde a
+           mesma letra é quase o dobro. A régua é a própria fonte. */
+        const corpo = parseFloat(getComputedStyle(seg).fontSize) || 11;
+        if (seg.getBoundingClientRect().height < corpo * 1.35 ||
+            seg.scrollWidth > seg.clientWidth + 1) seg.textContent = "";
+      });
+    });
   }
 
-  /* ----------------------------------------------- o mapa dos 40 locais */
-  const celas = $("apCelas"); celas.replaceChildren();
-  todos.forEach(m => {
-    const c = el("div","ap-cel" + (m.estado === "ok" ? "" : " " + m.estado), m.local);
-    c.title = m.local + " — " + (m.estado === "fora" ? "sem sinal"
-              : m.estado === "atencao" ? "instável" : "normal");
-    celas.appendChild(c);
-  });
+  /* ------------------------------------------------- a faixa de locais */
+  const faixa = pintarFaixa(mapa);
   $("apMapaN").textContent = String(todos.length);
-  $("apMapaK").textContent = [fora.length ? fora.length + " sem sinal" : "",
-                              aten.length ? aten.length + " instáveis" : "",
-                              ok.length + " normais"].filter(Boolean).join(" · ");
+  /* "Os 40 locais" sobre uma faixa de 20 células faria alguém contar e achar
+     que faltou gente. O título diz quantos existem E quantos estão em tela. */
+  $("apMapaT").textContent = todos.length > faixa.ordem.length
+    ? " · " + faixa.ordem.length + " em tela" : "";
+
+  /* A contagem vira LEGENDA: bolinha da cor antes do nome do estado. É o
+     que permite a quem não separa vermelho de âmbar ler a faixa — a cor
+     passa a ter nome escrito na mesma tela. Os números são os do censo
+     inteiro (os 40), iguais aos do alto da tela; a faixa mostra 20. */
+  const leg = $("apMapaK"); leg.replaceChildren();
+  [["var(--fora)", fora.length, "sem sinal"],
+   ["var(--atencao)", aten.length, "instáveis"],
+   ["", ok.length, "normais"]].forEach(([cor, n, nome]) => {
+    const s = el("span");
+    const pt = el("i");
+    if (cor) pt.style.background = cor;
+    else { pt.style.background = "var(--surface)"; pt.style.boxShadow = "inset 0 0 0 1px var(--hair-2)"; }
+    s.appendChild(pt);
+    s.appendChild(document.createTextNode(n + " " + nome));
+    leg.appendChild(s);
+  });
+  /* só no dia em que há mais locais em alerta do que posições */
+  if (faixa.sobra) leg.appendChild(el("span","mais", "+" + faixa.sobra + " sem posição"));
 
   /* o indicador de slide, com o nome: ninguém adivinha que a tela gira */
   const dots = $("apDots"); dots.replaceChildren();
@@ -3981,7 +4296,11 @@ function sairApres(){
   document.body.classList.remove("apres","mexeu");
   $("apres").setAttribute("aria-hidden","true");
   clearInterval(apTimer); apTimer = null;
-  pararRolagem();
+  clearTimeout(apFaixaTimer); apFaixaTimer = null; apFaixaMapa = null;
+  /* pararObs faltava aqui desde sempre: o ciclo de rolagem da observação se
+     reagenda sozinho, então ao sair da apresentação ele continuava rodando
+     para sempre, empilhando timers numa lista que ninguém mais limpava. */
+  pararRolagem(); pararObs();
   removeEventListener("pointermove", mexeu);
   clearTimeout(apMexeu);
   $("btnApres").focus();
