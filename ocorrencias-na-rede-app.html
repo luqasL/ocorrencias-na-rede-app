@@ -247,8 +247,12 @@ select:hover,input[type=date]:hover{border-color:var(--ink-3);}
    diferentes alinhados pelo pé desencontram os topos */
 .acoes-filtro .presets button{padding:7px 12px;font-size:13px;}
 
-.ordena{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.ordena .rot{font-size:11.5px;color:var(--ink-3);}
+/* botoeira colada: os tres botoes se tocam (column-gap:0) porque a borda
+   direita de cada um foi removida e reposta so no ultimo. Vao entre eles
+   deixaria cada botao com um lado sem borda. O espaco fica so depois do
+   rotulo. O row-gap cuida da quebra em tela estreita. */
+.ordena{display:flex;align-items:center;gap:6px 0;flex-wrap:wrap;}
+.ordena .rot{font-size:11.5px;color:var(--ink-3);margin-right:8px;}
 .ordena button{font-size:12.5px;font-weight:550;padding:5px 10px;background:var(--surface);
   border:1px solid var(--hair-2);border-right-width:0;cursor:pointer;color:var(--ink-2);
   display:inline-flex;align-items:center;gap:5px;}
