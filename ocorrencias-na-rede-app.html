@@ -760,6 +760,15 @@ input.campo,select.campo,textarea.campo{display:block;}
 /* ---- barra de seleção e prompt de confirmação ---- */
 .barra-sel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--accent-soft);
   border:1px solid var(--accent-line);border-radius:var(--r);padding:9px 12px;margin-top:11px;}
+/* A barra da seleção múltipla mora no fim da lista, e era ali que ela
+   aparecia: fora da tela. Marcar três incidentes no celular não mostrava
+   nada, porque "Fechar selecionados" nascia abaixo de todos os cartões.
+   Grudada no rodapé da janela, ela aparece onde a mão está, em qualquer
+   tamanho de tela. O fundo é opaco de propósito — ela passa por cima dos
+   cartões. */
+#g-barra{position:sticky;bottom:10px;z-index:30;}
+#g-barra .barra-sel{box-shadow:0 6px 22px rgba(0,0,0,.22);}
+.barra-sel .fsep{flex:1 1 auto;}
 .barra-sel-txt{font-size:13px;font-weight:600;color:var(--ink);}
 .prompt{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;background:var(--surface-2);
   border:1px solid var(--hair);border-radius:var(--r);padding:11px 12px;margin-top:11px;}
@@ -927,15 +936,32 @@ hr.divisor{border:0;}
 
 @media (max-width:760px){
   .rg-linha2 .campo,.rg-linha2 .campo-bloco{flex:1 1 100%;}
-  .rg-par{flex:1 1 100%;}
-  .rg-par > *{flex:1 1 0;}
+  /* O par De/Até era o que vazava para fora da tela no celular.
+
+     Um datetime-local não pode encolher: o Firefox corta os segmentos da
+     data, que foi o defeito corrigido antes. Então ele guarda a largura
+     que o navegador pediu — e dois deles lado a lado pedem ~480px, mais
+     do que um celular tem. Espremer traria o defeito de volta.
+
+     A saída não é espremer, é QUEBRAR: abaixo de 760px cada campo de data
+     toma uma linha inteira. Ninguém encolhe e nada passa da borda.
+     O wrap é do contêiner, então Slot/PON — que são estreitos e têm
+     largura própria no markup — seguem lado a lado como antes. */
+  .rg-par{flex:1 1 100%;flex-wrap:wrap;min-width:0;}
+  .rg-par > *{flex:1 1 0;min-width:0;}
+  .rg-par > .campo-data{flex:1 1 100%;}
   .rg-dica{display:none;}
   /* no celular a linha do slot não cabe: o select sobe, a régua desce */
   .blade.linha{flex-wrap:wrap;}
   .blade.linha > select{flex:0 0 auto;}
   .blade.linha .pons{flex:1 1 100%;order:3;}
   .blade-fim{margin-left:auto;}
-  .rg-regua button{width:30px;height:30px;font-size:11.5px;}
+  /* No celular a porta é alvo de dedo, não de ponteiro, e cresce.
+     Mas cresce nas DUAS famílias ao mesmo tempo: esta regra crescia só a
+     régua de seleção e deixava a porta do cartão em 26x23, refazendo no
+     celular a diferença de tamanho que foi eliminada no desktop. */
+  .pons .pon,.rg-regua button,.slotc.portas .pon{
+    min-width:30px;height:28px;font-size:11.5px;}
   .cad-topo .novo{margin-left:0;width:100%;}
   .cad-topo .novo input{width:auto;flex:1;}
   .rg-tempo{text-align:left;}
@@ -1204,9 +1230,9 @@ hr.divisor{border:0;}
                 </div>
               </div>
               <div class="rg-par">
-                <div class="campo-bloco"><label for="g-de">De</label>
+                <div class="campo-bloco campo-data"><label for="g-de">De</label>
                   <input id="g-de" class="campo" type="datetime-local"></div>
-                <div class="campo-bloco"><label for="g-ate">Até</label>
+                <div class="campo-bloco campo-data"><label for="g-ate">Até</label>
                   <input id="g-ate" class="campo" type="datetime-local"></div>
               </div>
               <div class="campo-bloco cresce"><label for="g-local">Local</label>
@@ -1257,9 +1283,9 @@ hr.divisor{border:0;}
                 </div>
               </div>
               <div class="rg-par">
-                <div class="campo-bloco"><label for="h-de">De</label>
+                <div class="campo-bloco campo-data"><label for="h-de">De</label>
                   <input id="h-de" class="campo" type="datetime-local"></div>
-                <div class="campo-bloco"><label for="h-ate">Até</label>
+                <div class="campo-bloco campo-data"><label for="h-ate">Até</label>
                   <input id="h-ate" class="campo" type="datetime-local"></div>
               </div>
               <div class="campo-bloco cresce"><label for="h-local">Local</label>
@@ -4349,8 +4375,39 @@ function cartao(inc, contexto){
      restabelecimento digitado errado. Oferecer "Fechar unidades" em azul
      num incidente fechado afirmava uma coisa que não existe, e pintava o
      histórico inteiro de botão primário. */
+  /* FECHAR O INCIDENTE INTEIRO.
+
+     Faltava o verbo mais comum. A régua abaixo sempre fez fechamento
+     PARCIAL — marcar o que voltou antes do resto — e para encerrar tudo
+     era preciso entrar nela e marcar unidade por unidade. A capacidade
+     já existia pronta na camada de escrita (fecharIncidente), sem nenhum
+     botão que a chamasse: o único caminho até ela era a seleção múltipla.
+
+     Agora são dois verbos lado a lado, e o inteiro é o principal:
+       Fechar incidente   -> todas as que faltam, num horário só
+       Fechar unidades    -> a régua, para o parcial
+     As duas continuam existindo. */
+  const emAberto = Math.max(0, totalU - restab);
+  if(aberto && emAberto){
+    const quantas = emAberto + ' ' + (temPorta
+      ? (emAberto === 1 ? 'porta' : 'portas')
+      : (emAberto === 1 ? 'local' : 'locais'));
+    const btTudo = el('button', {class:'btn btn-sm btn-pri', type:'button',
+      txt:'Fechar incidente'});
+    btTudo.addEventListener('click', () => {
+      tiraPrompts(dir);
+      dir.append(promptTermino('Término do incidente — fecha ' + quantas,
+        (valor, bt) => acao(bt, async () => {
+          const r = await apiPost('fecharIncidente', {idIncidente:inc.id, termino:valor});
+          toast('Incidente fechado.', inc.id + ' · ' + quantas);
+          aplicar(r);
+        })));
+    });
+    acts.append(btTudo);
+  }
   if(unidades.length)
-    acts.append(el('button', {class:'btn btn-sm btn-pri', type:'button',
+    acts.append(el('button', {class:'btn btn-sm' + (aberto && emAberto ? '' : ' btn-pri'),
+      type:'button',
       txt:aberto ? (temPorta ? 'Fechar unidades' : 'Fechar locais') : 'Corrigir horários',
       onclick:() => alterna('fechar')}));
   acts.append(el('button', {class:'btn btn-sm', type:'button', txt:'Editar',
@@ -4633,6 +4690,11 @@ function renderAbertos(){
           toast('Incidentes excluídos.', `${r.excluidos} ${r.excluidos === 1 ? 'incidente' : 'incidentes'}`);
           remover(ids);
         });
+      }}),
+      el('div', {class:'fsep'}),
+      el('button', {class:'bt-link', type:'button', txt:'Limpar seleção', onclick:() => {
+        selIncidentes.clear();
+        renderAbertos();
       }})
     ));
   }else barra.hidden = true;
