@@ -771,8 +771,14 @@ body.apres #apres{display:grid;}
 .ap-calmo .s{font-size:clamp(12px,1.7vh,24px);color:var(--ink-3);}
 
 /* resolvidos nas últimas 24h — ocupa a sobra em dia calmo, com dado real */
+/* min-height:min-content pelo mesmo motivo do cartão: como item do corpo
+   em coluna, com min-height:0 este quadro aceitava encolher abaixo do
+   próprio conteúdo e o overflow:hidden comia as últimas linhas — em tela
+   cheia a quinta linha de "Resolvidos nas últimas 24 horas" aparecia
+   partida ao meio. Com o piso, ou ele cabe inteiro, ou o laço de ajuste
+   tira linhas dele de propósito e diz quantas está listando. */
 .ap-quadro{background:var(--surface);border:1px solid var(--hair);border-radius:var(--r-lg);
-  padding:1.3vh 1.4vw;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+  padding:1.3vh 1.4vw;display:flex;flex-direction:column;min-height:min-content;overflow:hidden;}
 .ap-quadro h3{font-size:clamp(13px,1.9vh,27px);font-weight:650;letter-spacing:-.01em;}
 .ap-quadro .sub{font-size:clamp(10px,1.3vh,18px);color:var(--ink-3);margin-top:.3vh;}
 .ap-lin{display:flex;align-items:center;gap:1.1vw;padding:.9vh 0;border-top:1px solid var(--hair);min-width:0;}
@@ -4525,6 +4531,20 @@ function rolarObs(){
    intendente tanto quanto o que está aberto. Serve para ocupar a sobra de
    tela do dia calmo, e por isso é usado tanto no dia de um ou dois
    incidentes quanto no dia sem nenhum. */
+/* Quando o quadro perde linhas por falta de altura, o subtítulo tem de
+   contar isso. "5 incidentes encerrados" continua verdadeiro sobre o
+   período — o que muda é quantos estão listados aqui, e omitir isso faria
+   a tela parecer que esqueceu dois. */
+function anotarPoda(q){
+  const sub = q.querySelector(".sub");
+  if (!sub) return;
+  if (!sub.dataset.original) sub.dataset.original = sub.textContent;
+  const total = Number(q.dataset.total || 0);
+  const agora = q.querySelectorAll(".ap-lin").length;
+  sub.textContent = sub.dataset.original +
+    (total && agora < total ? " · listando " + agora + " de " + total : "");
+}
+
 function quadroResolvidos(lista){
   const limite = new Date(agora().getTime() - 24*3600*1000);
   const fechados = lista.filter(i => i.situacao === "fechado" && i.termino)
@@ -4537,6 +4557,7 @@ function quadroResolvidos(lista){
   if (!recentes.length) return null;
 
   const q = el("div","ap-quadro");
+  q.dataset.total = String(recentes.length);   /* para o subtítulo, se for podado */
   q.appendChild(el("h3","", doDia.length ? "Resolvidos nas últimas 24 horas"
                                          : "Últimos incidentes resolvidos"));
   const unid = recentes.reduce((s,i) => s + (i.qtdPortas || i.qtdLocais || 1), 0);
@@ -4853,6 +4874,20 @@ function desenharApres(){
              passaria despercebido. */
           if (corpo2.scrollHeight <= corpo2.clientHeight + 2 && cards.every(cabeBem)) break;
           if (!apertou){ apertou = true; corpo2.classList.add("apertado"); continue; }
+          /* O quadro de resolvidos é o extra do dia parado — só aparece
+             com dois abertos ou menos. Entre cortar o que está fora do ar
+             agora e encurtar a lista do que já voltou, encurta-se o que já
+             voltou. Ele perde linhas uma a uma, e o subtítulo passa a
+             dizer quantas está listando; esgotadas, sai de cena. */
+          const quadro = corpo2.querySelector(".ap-quadro");
+          if (quadro){
+            const linhas = quadro.querySelectorAll(".ap-lin");
+            if (linhas.length > 1){
+              linhas[linhas.length - 1].remove();
+              anotarPoda(quadro);
+            } else quadro.remove();
+            continue;
+          }
           /* um cartão sozinho não tem para onde ir: fica, apertado */
           if (cards.length === 1) break;
           cards[cards.length - 1].remove();
