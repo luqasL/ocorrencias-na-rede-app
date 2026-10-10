@@ -625,9 +625,24 @@ body.apres #apres{display:grid;}
 .ap-corpo{padding:1.4vh 2.2vw;display:flex;flex-direction:column;gap:1.1vh;min-height:0;overflow:hidden;}
 
 /* cartão de incidente */
+/* min-height:min-content, e não 0.
+
+   Os cartões dividem a altura do corpo com flex:1 1 auto, e a fatia de
+   cada um é proporcional ao próprio conteúdo. Um incidente de LOCAL
+   INTEIRO não tem grade de portas, então o conteúdo é curto e a fatia
+   vem pequena — mas a coluna da esquerda continua com o nome em corpo
+   grande, a tarja do evento e a data, e precisa de mais altura do que a
+   fatia recebida. Com min-height:0 o cartão aceitava encolher abaixo
+   disso, e o overflow:hidden comia o que sobrava: como o conteúdo é
+   centrado, metade do excesso saía por cima e o nome do local aparecia
+   decapitado.
+
+   Com min-content o cartão passa a ter um piso: quem tem folga cede, e
+   quando não há folga para ninguém o laço de ajuste rebaixa um cartão
+   cheio para compacto. Em nenhum caminho sobra conteúdo cortado. */
 .ap-inc{background:var(--surface);border:1px solid var(--hair);border-left:5px solid var(--fora);
   border-radius:var(--r-lg);padding:1.3vh 1.4vw;display:flex;gap:1.8vw;align-items:flex-start;
-  min-height:0;flex:1 1 auto;overflow:hidden;}
+  min-height:min-content;flex:1 1 auto;overflow:hidden;}
 .ap-inc.aten{border-left-color:var(--atencao);}
 .ap-inc .ident{min-width:16vw;max-width:22vw;flex:0 0 auto;}
 .ap-inc .loc{font-size:clamp(18px,3.4vh,48px);font-weight:750;letter-spacing:-.022em;line-height:1;
@@ -641,12 +656,12 @@ body.apres #apres{display:grid;}
 /* Sem este align-self o miolo fica do tamanho do conteúdo, passa do fundo
    do cartão e o overflow:hidden do cartão corta a observação pela metade.
    Esticando, a observação recebe o que SOBRA e encolhe sozinha. */
-.ap-inc:not(.curto) .meio{align-self:stretch;justify-content:center;}
+.ap-inc .meio{align-self:stretch;justify-content:center;}
 /* Em dia de pouco movimento o cartão fica alto e a folga é grande: o
    conteúdo centrado vira cartaz, em vez de um bloco de texto no topo com
    meio cartão vazio embaixo. Em dia cheio não sobra folga e isto não muda
    nada. */
-.ap-inc:not(.curto){align-items:center;}
+.ap-inc{align-items:center;}
 .ap-inc .cab{display:flex;align-items:baseline;gap:.9vw;margin-bottom:.9vh;flex-wrap:wrap;}
 .ap-inc .cab .slot{font-family:var(--mono);font-size:clamp(11px,1.55vh,21px);font-weight:700;letter-spacing:.05em;}
 .ap-inc .cab .cnt{font-size:clamp(10px,1.4vh,19px);color:var(--ink-2);}
@@ -660,14 +675,46 @@ body.apres #apres{display:grid;}
    transbordar: some a grade e a observação, o nome e o tempo diminuem, e
    tudo cabe numa faixa. NENHUM local é escondido atrás de um "+N" — quem
    está fora do ar aparece na tela, sempre. */
-.ap-inc.curto{padding:.8vh 1.4vw;align-items:center;flex:0 0 auto;}
-.ap-inc.curto .ident{display:flex;align-items:baseline;gap:.9vw;min-width:24vw;max-width:34vw;}
-.ap-inc.curto .loc{font-size:clamp(14px,2.2vh,30px);}
-.ap-inc.curto .ev{margin-top:0;font-size:clamp(9px,1.15vh,15px);padding:.25vh .6vw;}
-.ap-inc.curto .desde{display:none;}
-.ap-inc.curto .cab{margin-bottom:0;}
-.ap-inc.curto .tempo b{font-size:clamp(16px,2.8vh,38px);}
-.ap-inc.curto .tempo span{display:none;}
+/* O DEGRAU ANTES DE TIRAR INFORMAÇÃO.
+
+   O ajuste só tinha dois estados: cartão cheio ou cartão compacto, e o
+   compacto paga caro — some a grade de portas e a observação. Quando
+   faltavam cinco pixels para tudo caber, a tela pagava esse preço em dois
+   cartões, ou (pior, antes desta correção) cortava o nome do primeiro.
+
+   Entre os dois entra o aperto: menos respiro e tipografia um degrau
+   abaixo, com a grade, o nome e o tempo todos no lugar. Em quase todo
+   caso isso basta, e nada se perde. Só quando nem apertado couber é que
+   um cartão vira compacto. */
+.ap-corpo.apertado{gap:.6vh;}
+.ap-corpo.apertado .ap-inc{padding:.7vh 1.1vw;}
+.ap-corpo.apertado .ap-inc .loc{font-size:clamp(15px,2.7vh,38px);}
+.ap-corpo.apertado .ap-inc .ev{margin-top:.45vh;padding:.3vh .7vw;
+  font-size:clamp(9px,1.2vh,16px);}
+.ap-corpo.apertado .ap-inc .desde{margin-top:.45vh;font-size:clamp(9px,1.1vh,15px);}
+.ap-corpo.apertado .ap-inc .cab{margin-bottom:.45vh;}
+.ap-corpo.apertado .ap-inc .tempo b{font-size:clamp(18px,3.4vh,48px);}
+.ap-corpo.apertado .ap-slots{gap:.4vh;}
+.ap-corpo.apertado .ap-pon{height:2.8vh;}
+.ap-corpo.apertado .ap-obs{margin-top:.6vh;padding:.6vh .9vw;}
+
+/* O CARTÃO COMPACTO FOI REMOVIDO, e não é descuido.
+
+   Ele existia para caber mais gente na tela removendo a grade de portas,
+   a data e o "em aberto" — nasceu quando a lista não tinha para onde
+   transbordar e a escolha era entre mostrar menos de cada um ou perder
+   os últimos. Com o rodízio essa escolha deixou de existir: o que não
+   cabe não some, vai para a página seguinte.
+
+   E a grade de portas é o que a tela tem de mais útil a cinco metros —
+   a mancha vermelha diz "nenhuma voltou" sem ninguém ler número nenhum.
+   Trocá-la por uma barra fina para ganhar uma linha era o pior negócio
+   possível. Agora todo incidente sai inteiro, em qualquer página.
+
+   O que regula o espaço é só o aperto (.ap-corpo.apertado acima), que
+   mexe em respiro e tipografia sem tirar informação, e a observação,
+   que segue a regra de sempre: é o extra, sai quando não cabe nem uma
+   linha inteira. */
 
 /* A GRADE DE PORTAS — o coração desta reforma.
    Antes: "SLOT 03 · PON 1, 2, 3, …, 16" escrito, que a cinco metros não se
@@ -891,7 +938,25 @@ body.apres.mexeu .ap-sair{opacity:1;pointer-events:auto;}
 
 /* ============================ impressão ============================ */
 @media print{
-  :root{--plane:#fff;--surface:#fff;--surface-2:#fff;--well:#fff;--ink:#000;--ink-2:#222;--ink-3:#444;
+  /* O PAPEL É SEMPRE CLARO — E OS TRÊS SELETORES SÃO NECESSÁRIOS.
+
+     O tema escuro é aplicado em :root[data-tema="escuro"], que vale
+     0,2,0 de especificidade. Um :root sozinho aqui vale 0,1,0, e @media
+     não acrescenta especificidade nenhuma. Com o plano escuro ligado,
+     estes tokens perdiam para os do tema e o PDF saía preto: só o
+     body{background:#fff} pegava, por ser regra de elemento e não de
+     token — daí a faixa branca no alto e o resto escuro, com as bordas
+     e o cabeçalho brancos perdidos no fundo.
+
+     Repetindo o seletor com o atributo, empatamos em especificidade e
+     ganhamos por ordem, já que este bloco vem depois das declarações de
+     tema. O beforeprint, no JS, é a segunda defesa: força o tema claro
+     na hora de imprimir, o que também corrige o que o JS pinta direto
+     no style dos gráficos. */
+  :root,
+  :root[data-tema="claro"],
+  :root[data-tema="escuro"]{
+    --plane:#fff;--surface:#fff;--surface-2:#fff;--well:#fff;--ink:#000;--ink-2:#222;--ink-3:#444;
     --hair:#bbb;--hair-2:#888;--bezel:#fff;--bezel-ink:#000;--bezel-ink-2:#333;--bezel-hair:#bbb;
     --fora-track:#fff;--ok-track:#fff;--aten-track:#fff;--accent-soft:#fff;--accent-line:#999;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -4165,6 +4230,27 @@ function aplicarTema(t){
   try { localStorage.setItem("painel-tema", t); } catch(e){}
   desenharTendencia();
 }
+/* A segunda defesa da impressão em plano claro. O CSS acima já zera os
+   tokens, mas não alcança o que o JS escreveu direto no atributo style de
+   um nó — as cores dos gráficos, por exemplo. Trocar o tema antes de
+   imprimir resolve as duas coisas, e a tela volta ao normal assim que a
+   impressão termina. Ninguém precisa lembrar de clicar em "Plano claro"
+   antes de exportar. */
+let temaAntesDeImprimir = null;
+addEventListener("beforeprint", () => {
+  const atual = document.documentElement.getAttribute("data-tema");
+  if (atual === "claro") return;
+  temaAntesDeImprimir = atual;
+  document.documentElement.setAttribute("data-tema", "claro");
+  try { desenharTendencia(); } catch(e){}
+});
+addEventListener("afterprint", () => {
+  if (temaAntesDeImprimir == null) return;
+  document.documentElement.setAttribute("data-tema", temaAntesDeImprimir);
+  temaAntesDeImprimir = null;
+  try { desenharTendencia(); } catch(e){}
+});
+
 $("btnTema").addEventListener("click", () => {
   aplicarTema(document.documentElement.getAttribute("data-tema") === "claro" ? "escuro" : "claro");
 });
@@ -4173,7 +4259,39 @@ $("btnTema").addEventListener("click", () => {
 /*  Modo apresentação — tela própria, paisagem, sem rolagem           */
 /* ================================================================== */
 let apTimer = null, apIdx = 0, apMexeu = null;
+
+/* RODÍZIO DA LISTA DO "AGORA".
+
+   O corpo tem overflow:hidden, então até aqui tudo o que não coubesse
+   simplesmente não era desenhado: a partir de uns treze incidentes
+   abertos os últimos sumiam da tela sem aviso — numa tela de 768px, com
+   vinte abertos, oito locais ficavam de fora e o décimo segundo aparecia
+   partido ao meio. Para uma tela de NOC isso é o pior defeito possível:
+   ela existe para dizer o que está fora do ar, e escondia justamente
+   parte disso.
+
+   Agora a lista gira. Quantos cabem não é um número fixo — depende da
+   altura da TV e do tamanho de cada cartão — então quem decide é a
+   medição: a página é preenchida até encher, o que sobra vai para a
+   próxima, e as páginas se alternam no mesmo relógio que já troca entre
+   "agora" e "o período". Nenhum local deixa de aparecer; alguns esperam
+   a vez. */
+let TOTAL_ABERTOS = 0;
+let apIni = 0;        /* índice do primeiro incidente da página atual */
+let apMostrados = 0;  /* quantos couberam de fato nesta página */
+let apTemMais = false;
+let apPagNum = 1, apPags = 1, apPorPagina = 0;
+let apPagsReal = 0;      /* quantas páginas a volta anterior teve de fato */
+let apTotalDaVolta = -1; /* se o número de abertos muda, a conta recomeça */
 const AP_MS = 25000;
+/* Com a grade de portas sempre visível cabe menos gente por página, e as
+   páginas se multiplicam: com trinta abertos são seis. A 25 segundos cada,
+   um local levaria quase três minutos para reaparecer — tempo demais para
+   uma tela que existe para dizer o que está fora do ar agora. Página de
+   lista com fila esperando corre mais; tela única, que não faz ninguém
+   esperar, mantém os 25. */
+const AP_MS_PAG = 14000;
+let apDur = AP_MS;
 
 /* ---------- rolagem suave da lista em aberto ----------
    Numa tela de parede não há como rolar à mão, então a lista se move
@@ -4212,7 +4330,9 @@ function rolarLista(vp, lst){
     }
 
     /* a descida cabe na janela de 15s da alternância: 3s + descida + 2s */
-    const dur = Math.min(Math.max(sobra / ROL_PX_S * 1000, 3000), AP_MS - ROL_TOPO - ROL_FIM);
+    /* o teto é a duração DESTA tela: numa página de 14s a rolagem não
+       pode ser calculada contra os 25s, senão ela é cortada no meio */
+    const dur = Math.min(Math.max(sobra / ROL_PX_S * 1000, 3000), apDur - ROL_TOPO - ROL_FIM);
     const ciclo = () => {
       lst.style.transition = "none";
       lst.style.transform = "translateY(0)";
@@ -4312,6 +4432,27 @@ function linhasDe(txt){
    laço rebaixar cartões inteiros, trocando a grade de portas de um
    incidente por uma barra fina, para ganhar duas linhas de texto noutro. */
 function cabeBem(card){
+  /* AS COLUNAS DA BEIRADA TAMBÉM PRECISAM CABER.
+
+     Esta verificação olhava só o miolo, e o nome do local não mora lá: ele
+     fica na coluna da esquerda, junto da tarja do evento e do "desde".
+     Essas duas colunas não têm o que encolher nem para onde rolar.
+
+     Os cartões dividem a altura com flex:1 1 auto, e a fatia de cada um
+     sai do tamanho do conteúdo dele. Um incidente de LOCAL INTEIRO não tem
+     grade de portas, então o conteúdo é curto e a fatia vem pequena — só
+     que a coluna da esquerda continua com o nome em corpo grande, a tarja
+     e a data, e precisa de mais altura do que a fatia recebida. Como o
+     cartão centraliza o conteúdo e corta o que sobra, o excesso sangrava
+     metade para cima: era por isso que ITAITUBA aparecia decapitado.
+
+     Detectando aqui, o laço rebaixa um cartão cheio, a altura liberada
+     volta para os outros e ninguém fica menor do que precisa. */
+  const r = card.getBoundingClientRect();
+  for (const col of card.querySelectorAll(".ident, .tempo")){
+    const b = col.getBoundingClientRect();
+    if (b.height && (b.top < r.top - 1 || b.bottom > r.bottom + 1)) return false;
+  }
   const meio = card.querySelector(".meio");
   if (!meio) return true;
   const cx = meio.querySelector(".ap-obs");
@@ -4610,19 +4751,17 @@ function desenharApres(){
       const qc = quadroResolvidos(lista);
       if (qc) corpo.appendChild(qc);
     } else {
-      /* Quantos cartões cheios cabem em 1080px de altura, descontando topo,
-         faixa de estado e mapa. Medido, não chutado: com cinco incidentes e
-         quatro cartões cheios o último ficava cortado pela borda. */
-      /* Ponto de partida GENEROSO: o laço de medida logo abaixo só sabe
-         rebaixar, nunca promover. Começar baixo travava a tela em um
-         cartão cheio mesmo quando dois caberiam. */
-      /* Todos começam cheios. Quantos continuam assim quem decide é a
-         medição logo abaixo, contra a altura real da tela — não um número
-         fixo aqui, que erra em toda TV de tamanho diferente. */
-      const CHEIOS = emAberto.length;
-      emAberto.forEach((inc, idx) => {
+      /* Não há mais "quantos cabem cheios": TODO incidente sai cheio, com
+         a grade de portas, a data e o tempo. Quantos entram nesta página
+         quem decide é a medição logo abaixo; o resto vai para a próxima. */
+      /* a página começa onde a anterior parou; se o número de abertos caiu
+         entre um giro e outro, volta ao começo em vez de mostrar vazio */
+      if (apIni >= emAberto.length) apIni = 0;
+      TOTAL_ABERTOS = emAberto.length;
+      const daPagina = emAberto.slice(apIni);
+      daPagina.forEach((inc, idx) => {
         const grave = GRAVE.has(inc.evento);
-        const card = el("div","ap-inc" + (grave ? "" : " aten") + (idx < CHEIOS ? "" : " curto"));
+        const card = el("div","ap-inc" + (grave ? "" : " aten"));
         const ident = el("div","ident");
         ident.appendChild(el("div","loc", inc.locaisTexto));
         ident.appendChild(el("div","ev", inc.evento));
@@ -4649,7 +4788,7 @@ function desenharApres(){
         }
         meio.appendChild(cab);
 
-        if (grupos.length && idx < CHEIOS){
+        if (grupos.length){
           const slots = el("div","ap-slots");
           grupos.slice(0,3).forEach(g => {
             const lin = el("div","lin");
@@ -4661,7 +4800,7 @@ function desenharApres(){
             slots.appendChild(el("div","lin", "… e mais " + (grupos.length - 3) + " slots"));
           meio.appendChild(slots);
         }
-        if (idx < CHEIOS){
+        {
           const o = obsApres(inc.observacao);
           /* Incidente GRAVE: a observação só fica se for curta — o espaço
              disputado é o da grade de portas, e num local sem sinal a grade
@@ -4685,26 +4824,67 @@ function desenharApres(){
         const qr = quadroResolvidos(lista);
         if (qr) corpo.appendChild(qr);
       }
-      /* Mede e rebaixa. O chute acima é só o ponto de partida: aqui a tela
-         confere se coube de verdade e, enquanto não couber, transforma o
-         último cartão cheio em compacto. Em tela maior sobram cartões
-         cheios; em tela menor, menos. Nenhum local some. */
+      /* MEDE, APERTA E PAGINA — nesta ordem, e nunca removendo informação.
+
+         A versão anterior rebaixava cartões a compactos até a lista caber,
+         trocando a grade de portas de um incidente por uma barra fina. Com
+         o rodízio isso não se justifica mais: o que não cabe não precisa
+         encolher, precisa esperar a vez na página seguinte.
+
+         Restam dois movimentos. Primeiro o APERTO, que mexe em respiro e
+         tipografia e não custa informação nenhuma. Depois a PAGINAÇÃO: o
+         último cartão sai desta página e entra na próxima. A observação
+         segue a regra de sempre e sai sozinha quando não cabe nem uma
+         linha — ela é o extra, a grade de portas não. */
       requestAnimationFrame(() => {
         const corpo2 = $("apCorpo");
-        let guarda = 24;
+        corpo2.classList.remove("apertado");
+        /* uma volta para cada cartão, mais folga: com teto fixo o laço
+           esgotava as tentativas antes de acomodar listas grandes */
+        let guarda = corpo2.querySelectorAll(".ap-inc").length + 8;
+        let apertou = false;
         while (guarda-- > 0){
-          const cheios = [...corpo2.querySelectorAll(".ap-inc:not(.curto)")];
-          if (cheios.length <= 1) break;
-          /* Duas razões para rebaixar: o corpo transbordou, ou algum cartão
-             cheio ficou tão espremido que a observação não comporta nem uma
-             linha inteira. A segunda é a que faltava: com os cartões
-             dividindo a altura, o corpo NUNCA transborda — eles só
-             encolhem — e o aperto passava despercebido. */
-          if (corpo2.scrollHeight <= corpo2.clientHeight + 2 && cheios.every(cabeBem)) break;
-          const ult = cheios[cheios.length - 1];
-          ult.classList.add("curto");
-          ult.querySelectorAll(".ap-slots,.ap-obs").forEach(e => e.remove());
+          const cards = [...corpo2.querySelectorAll(".ap-inc")];
+          if (!cards.length) break;
+          /* Duas razões para não caber: o corpo transbordou, ou algum
+             cartão ficou tão espremido que o próprio conteúdo não entra.
+             A segunda é a que engana: com os cartões dividindo a altura o
+             corpo quase nunca transborda — eles só encolhem — e o aperto
+             passaria despercebido. */
+          if (corpo2.scrollHeight <= corpo2.clientHeight + 2 && cards.every(cabeBem)) break;
+          if (!apertou){ apertou = true; corpo2.classList.add("apertado"); continue; }
+          /* um cartão sozinho não tem para onde ir: fica, apertado */
+          if (cards.length === 1) break;
+          cards[cards.length - 1].remove();
         }
+        apMostrados = corpo2.querySelectorAll(".ap-inc").length;
+        apTemMais = (apIni + apMostrados) < TOTAL_ABERTOS;
+        /* O total de páginas sai da PRIMEIRA, que é a cheia. Calcular com
+           o que coube na página corrente dava um indicador mentiroso —
+           "1 de 2" seguido de "2 de 3" —, porque a última página tem menos
+           cartões e, por terem mais espaço, eles saem maiores. */
+        /* O TOTAL DE PÁGINAS NÃO SE ESTIMA — SE MEDE, NA VOLTA ANTERIOR.
+
+           Duas estimativas foram tentadas e as duas mentiram. Dividir pelo
+           que coube na PRIMEIRA página dava "5 de 5" seguido de "6 de 6",
+           porque as seguintes cabem menos: sobra espaço e os cartões
+           crescem. Dividir pelo MENOR número já visto dava "6 de 10",
+           porque a última página é sempre um resto — três cartões ali não
+           dizem nada sobre a capacidade da tela.
+
+           Não há como saber quantas páginas serão antes de percorrê-las.
+           Então, na primeira volta, a tela diz apenas "PÁGINA 2"; da
+           segunda em diante diz "2 DE 6", que é número medido. Um rótulo
+           honesto e quieto vale mais do que um total que dança. */
+        if (apTotalDaVolta !== TOTAL_ABERTOS){ apPagsReal = 0; apTotalDaVolta = TOTAL_ABERTOS; }
+        if (apIni === 0) apPorPagina = apMostrados;
+        /* 0 = ainda não se sabe. Se a página corrente já passou do total
+           memorizado, a lista cresceu e o total velho não vale mais. */
+        apPags = apPagNum > apPagsReal ? 0 : apPagsReal;
+        /* quem tem fila esperando a vez corre mais */
+        apDur = apPags > 1 ? AP_MS_PAG : AP_MS;
+        pintarDots();
+
         /* Congela a altura dos cartões antes de mexer nas observações: assim
            encolher uma caixa não redistribui altura entre os cartões e a
            medida não anda debaixo de quem está medindo. */
@@ -4912,20 +5092,58 @@ function desenharApres(){
   /* só no dia em que há mais locais em alerta do que posições */
   if (faixa.sobra) leg.appendChild(el("span","mais", "+" + faixa.sobra + " sem posição"));
 
-  /* o indicador de slide, com o nome: ninguém adivinha que a tela gira */
-  const dots = $("apDots"); dots.replaceChildren();
-  [0,1].forEach(i => dots.appendChild(el("i", i === apIdx ? "on" : "")));
-  dots.appendChild(el("span", null, apIdx === 0 ? "AGORA" : "O PERÍODO"));
+  pintarDots();
   marcarSelo();
+}
+
+/* o indicador de slide, com o nome: ninguém adivinha que a tela gira.
+   Quando a lista do "agora" não cabe numa página só, ele diz também em
+   qual delas estamos — senão quem olha a TV acha que o painel esqueceu
+   metade dos locais. */
+function pintarDots(){
+  const dots = $("apDots"); if (!dots) return;
+  dots.replaceChildren();
+  [0,1].forEach(i => dots.appendChild(el("i", i === apIdx ? "on" : "")));
+  dots.appendChild(el("span", null, apIdx !== 0 ? "O PERÍODO"
+    /* total conhecido (medido numa volta anterior) */
+    : apPags > 1 ? "AGORA  " + apPagNum + " DE " + apPags
+    /* primeira volta: ainda não se sabe quantas são, então só o número */
+    : (apPagNum > 1 || apTemMais) ? "AGORA  PÁGINA " + apPagNum
+    : "AGORA"));
 }
 function entrarApres(){
   document.documentElement.style.overflow = "hidden";
   scrollTo(0, 0);
   document.body.classList.add("apres");
   $("apres").setAttribute("aria-hidden","false");
-  apIdx = 0; desenharApres();
-  clearInterval(apTimer);
-  apTimer = setInterval(() => { apIdx = (apIdx+1) % 2; desenharApres(); }, AP_MS);
+  apIdx = 0; apIni = 0; apPagNum = 1; apPags = 1; apPorPagina = 0;
+  apPagsReal = 0; apTotalDaVolta = -1; apTemMais = false; apDur = AP_MS;
+  desenharApres();
+  clearTimeout(apTimer);
+  /* O giro agora tem três movimentos em vez de dois: enquanto sobrar
+     incidente que não coube, a tela "agora" avança de página; esgotadas as
+     páginas, vai para "o período"; e dali volta ao começo da lista. */
+  /* Timeout que se reagenda, em vez de intervalo fixo: cada tela tem a
+     sua duração. A primeira página sai com os 25 segundos porque o número
+     de páginas só se conhece depois de medir — e ela é a mais vista, então
+     a defasagem de um passo joga a favor. */
+  const girar = () => {
+    if (apIdx === 0 && apTemMais){
+      apIni += apMostrados;
+      apPagNum++;
+    } else if (apIdx === 0){
+      /* a lista acabou: guarda quantas páginas ela teve de verdade, para a
+         próxima volta já anunciar o total certo desde a primeira */
+      apPagsReal = apPagNum;
+      apIdx = 1;
+      apDur = AP_MS;              /* "o período" não faz ninguém esperar */
+    } else {
+      apIdx = 0; apIni = 0; apPagNum = 1;
+    }
+    desenharApres();
+    apTimer = setTimeout(girar, apDur);
+  };
+  apTimer = setTimeout(girar, apDur);
   addEventListener("pointermove", mexeu);
   $("btnSairApres").focus();
 }
@@ -4933,7 +5151,7 @@ function sairApres(){
   document.documentElement.style.overflow = "";
   document.body.classList.remove("apres","mexeu");
   $("apres").setAttribute("aria-hidden","true");
-  clearInterval(apTimer); apTimer = null;
+  clearTimeout(apTimer); apTimer = null;
   clearTimeout(apFaixaTimer); apFaixaTimer = null; apFaixaMapa = null;
   /* pararObs faltava aqui desde sempre: o ciclo de rolagem da observação se
      reagenda sozinho, então ao sair da apresentação ele continuava rodando

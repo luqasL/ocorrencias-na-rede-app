@@ -4152,15 +4152,28 @@ function blocoAdicionarUnidades(inc){
   if(temPorta){
     const estado = [{slot:1, pons:new Set()}];
     corpo = el('div', {},
+      /* Por que não há campo de local aqui: a camada de escrita recusa
+         local novo em incidente com porta — "aceita um local só" — e essa
+         é regra do modelo, não esquecimento da tela. Dizer isso aqui é
+         melhor do que deixar o campo faltando sem explicação. */
       el('p', {class:'nota-solta', style:'margin-bottom:10px',
-        txt:'Marque na régua as portas que caíram. Este incidente é de ' + (inc.locaisTexto || '—') + '.'}),
+        txt:'Marque na régua as portas que caíram depois, no mesmo incidente. ' +
+            'Elas entram com o horário abaixo, e as antigas ficam como estão.'}),
+      el('p', {class:'nota-solta', style:'margin-bottom:10px',
+        txt:'Este incidente é de ' + (inc.locaisTexto || '—') + ' e aceita um local só. ' +
+            'Se outra região caiu, ela é um incidente novo.'}),
       criarSeletor(estado, () => {}));
     pega = () => ({portas:portasDoEstado(estado)});
   }else{
     const s = seletorDeLocais(inc.locais);
     corpo = el('div', {},
       el('p', {class:'nota-solta', style:'margin-bottom:10px',
-        txt:'Escolha os locais que entraram no mesmo incidente.'}),
+        txt:'Escolha os locais que entraram depois, no mesmo incidente. ' +
+            'Eles entram com o horário abaixo, e os antigos ficam como estão.'}),
+      /* o espelho da nota acima: incidente sem porta não recebe porta */
+      el('p', {class:'nota-solta', style:'margin-bottom:10px',
+        txt:'Este incidente é de local inteiro, sem porta identificada. ' +
+            'Se o caso for de portas específicas, ele é um incidente novo.'}),
       s.no);
     pega = () => ({locais:s.valores()});
   }
@@ -4185,9 +4198,9 @@ function blocoAdicionarUnidades(inc){
   });
 
   return el('div', {class:'grupo-bloco'},
-    el('h3', {txt:'Adicionar unidades a ' + inc.id}),
+    el('h3', {txt:(temPorta ? 'Adicionar portas a ' : 'Adicionar locais a ') + inc.id}),
     el('div', {class:'campo-bloco', style:'max-width:260px;margin-bottom:12px'},
-      el('label', {txt:'Início das novas unidades'}), inicio),
+      el('label', {txt:temPorta ? 'Início das novas portas' : 'Início dos novos locais'}), inicio),
     corpo,
     el('div', {class:'linha-bt', style:'margin-top:14px'}, btOk, btNao)
   );
@@ -4226,8 +4239,8 @@ function blocoEditar(inc){
     el('h3', {txt:'Editar ' + inc.id}),
     el('p', {class:'nota-solta', style:'margin:-6px 0 12px',
       txt:temPorta
-        ? 'Início e término são calculados pelas unidades. Para mudar data, use "corrigir" na régua do slot. Portas novas entram por Adicionar unidades, com horário próprio.'
-        : 'Início e término são calculados pelas unidades. Para mudar data ou local, use "corrigir" na lista de locais. Os locais entram e saem por Adicionar unidades.'}),
+        ? 'Início e término são calculados pelas unidades. Para mudar data, use "corrigir" na régua do slot. Portas novas entram por "Adicionar ao incidente", com horário próprio.'
+        : 'Início e término são calculados pelas unidades. Para mudar data ou local, use "corrigir" na lista de locais. Os locais entram e saem por "Adicionar ao incidente".'}),
     el('div', {class:'grade'},
       el('div', {class:'campo-bloco c6'}, el('label', {txt:'Evento'}), evento),
       local ? el('div', {class:'campo-bloco c6'}, el('label', {txt:'Local'}), local) : null,
@@ -4392,18 +4405,17 @@ function cartao(inc, contexto){
     const quantas = emAberto + ' ' + (temPorta
       ? (emAberto === 1 ? 'porta' : 'portas')
       : (emAberto === 1 ? 'local' : 'locais'));
-    const btTudo = el('button', {class:'btn btn-sm btn-pri', type:'button',
-      txt:'Fechar incidente'});
-    btTudo.addEventListener('click', () => {
-      tiraPrompts(dir);
-      dir.append(promptTermino('Término do incidente — fecha ' + quantas,
-        (valor, bt) => acao(bt, async () => {
-          const r = await apiPost('fecharIncidente', {idIncidente:inc.id, termino:valor});
-          toast('Incidente fechado.', inc.id + ' · ' + quantas);
-          aplicar(r);
-        })));
-    });
-    acts.append(btTudo);
+    /* O prompt abre na FAIXA LARGA, abaixo do cartão, e não aqui na
+       coluna das ações.
+
+       Ele nasceu dentro desta coluna, que tem 208px de largura (175
+       úteis). O bloco do campo pede 190px e o datetime-local do Firefox
+       pede mais: o campo vazava 28px para fora, o rótulo quebrava em duas
+       linhas e Confirmar/Cancelar caíam empilhados. O fechamento parcial
+       nunca teve esse problema porque sempre abriu na faixa — agora os
+       dois verbos abrem no mesmo lugar. */
+    acts.append(el('button', {class:'btn btn-sm btn-pri', type:'button',
+      txt:'Fechar incidente', onclick:() => alterna('fechar-tudo')}));
   }
   if(unidades.length)
     acts.append(el('button', {class:'btn btn-sm' + (aberto && emAberto ? '' : ' btn-pri'),
@@ -4413,7 +4425,11 @@ function cartao(inc, contexto){
   acts.append(el('button', {class:'btn btn-sm', type:'button', txt:'Editar',
     onclick:() => alterna('edit')}));
   if(contexto === 'abertos')
-    acts.append(el('button', {class:'btn btn-sm', type:'button', txt:'Adicionar unidades',
+    /* "Adicionar unidades" era vocabulário do banco, não do NOC. Quem
+       opera diz porta, PON, local — e procurava isto dentro de "Editar",
+       onde não está. "Adicionar ao incidente" não promete um tipo
+       específico: o painel que abre é que mostra o que cabe ali. */
+    acts.append(el('button', {class:'btn btn-sm', type:'button', txt:'Adicionar ao incidente',
       onclick:() => alterna('add')}));
   if(!aberto){
     const btReabre = el('button', {class:'btn btn-sm', type:'button', txt:'Reabrir'});
@@ -4452,6 +4468,33 @@ function cartao(inc, contexto){
   /* ---- a faixa de edição: só abre quando se pede ---- */
   if(!expandido) return cx;
   const ed = el('div', {class:'card-ed' + (acabouDeAbrir === inc.id ? ' abrindo' : '')});
+
+  /* fechar o incidente inteiro: só o horário, na largura da faixa */
+  if(modo[inc.id] === 'fechar-tudo' && aberto){
+    const abertasAgora = Math.max(0, totalU - restab);
+    const quantasTxt = abertasAgora + ' ' + (temPorta
+      ? (abertasAgora === 1 ? 'porta' : 'portas')
+      : (abertasAgora === 1 ? 'local' : 'locais'));
+    ed.append(el('div', {class:'grupo-bloco'},
+      el('h3', {txt:'Fechar ' + inc.id + ' por inteiro'}),
+      el('p', {class:'nota-solta', style:'margin:-6px 0 12px',
+        txt:'O mesmo horário vale para ' + quantasTxt + ' que ainda estão em aberto. ' +
+            'Para fechar só uma parte, use "' + (temPorta ? 'Fechar unidades' : 'Fechar locais') + '".'}),
+      (() => {
+        const pr = promptTermino('Término do incidente', (valor, bt) => acao(bt, async () => {
+          const r = await apiPost('fecharIncidente', {idIncidente:inc.id, termino:valor});
+          modo[inc.id] = null;
+          toast('Incidente fechado.', inc.id + ' · ' + quantasTxt);
+          aplicar(r);
+        }));
+        /* aqui o Cancelar fecha a faixa inteira; só remover o prompt
+           deixaria o bloco aberto e vazio, sem jeito de sair dele */
+        const bt = [...pr.querySelectorAll('button')].find(b => b.textContent === 'Cancelar');
+        if(bt) bt.onclick = () => { modo[inc.id] = null; renderLista(); };
+        return pr;
+      })()
+    ));
+  }
 
   if(modo[inc.id] === 'fechar' && unidades.length){
     ed.append(temPorta ? bladesDoIncidente(inc) : blocoDeLocais(inc));
